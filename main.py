@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
+"""
+DorkMaster Mobile v4.1 — single-file Kivy application.
+Wraps DorkMaster v4 engine in an Android-ready UI.
 
+Desktop run:  pip install kivy aiohttp aiohttp-socks && python main.py
+Android:      push to GitHub → Actions → APK artifact
+
+On first run this file writes:
+  ./buildozer.spec
+  ./.github/workflows/build.yml
+"""
 from __future__ import annotations
 
-# ── bootstrap: write build files if missing ──────────────────────────────
 import os, sys, pathlib
 
 def _write_if_missing(path: str, content: str) -> None:
@@ -12,18 +21,16 @@ def _write_if_missing(path: str, content: str) -> None:
         p.write_text(content, encoding="utf-8")
         print(f"[bootstrap] wrote {path}")
 
-_BUILDOZER_SPEC = r"""
+_BUILDOZER_SPEC = """
 [app]
 title = DorkMaster
 package.name = dorkmaster
 package.domain = org.dorkmaster
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,txt
-version = 4.0.0
+version = 4.1.0
 requirements = python3,kivy==2.3.0,aiohttp,aiohttp-socks,certifi,charset-normalizer,multidict,yarl,frozenlist,aiosignal,attrs
 orientation = portrait
-osx.python_version = 3
-osx.kivy_version = 2.3.0
 fullscreen = 0
 android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 android.api = 33
@@ -32,12 +39,13 @@ android.ndk = 25b
 android.archs = arm64-v8a,armeabi-v7a
 android.allow_backup = True
 android.logcat_filters = *:S python:D
+
 [buildozer]
 log_level = 2
 warn_on_root = 1
 """.strip()
 
-_GH_WORKFLOW = r"""
+_GH_WORKFLOW = """
 name: Build APK
 on:
   push:
@@ -48,36 +56,27 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
       - name: Install system deps
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y \
-            git zip unzip openjdk-17-jdk autoconf libtool \
-            pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev \
-            libtinfo5 cmake libffi-dev libssl-dev \
+          sudo apt-get install -y \\
+            git zip unzip openjdk-17-jdk autoconf libtool \\
+            pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev \\
+            libtinfo5 cmake libffi-dev libssl-dev \\
             python3-pip build-essential ccache
-
-      - name: Cache Buildozer global
+      - name: Cache Buildozer
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
           key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
-
       - name: Install Buildozer
         run: pip install buildozer cython==0.29.36
-
       - name: Build APK
-        run: |
-          buildozer -v android debug 2>&1 | tail -200
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
-
+        run: buildozer -v android debug 2>&1 | tail -200
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -89,7 +88,7 @@ jobs:
 _write_if_missing("buildozer.spec", _BUILDOZER_SPEC)
 _write_if_missing(".github/workflows/build.yml", _GH_WORKFLOW)
 
-# ── Kivy environment setup (must happen before kivy import) ───────────────
+# ── env setup before kivy import ─────────────────────────────────────────
 os.environ.setdefault("KIVY_NO_ENV_CONFIG", "1")
 os.environ.setdefault("PYTHONUTF8", "1")
 
@@ -107,7 +106,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-# ── Kivy ──────────────────────────────────────────────────────────────────
+# ── kivy ──────────────────────────────────────────────────────────────────
 try:
     import kivy
     kivy.require("2.0.0")
@@ -123,7 +122,6 @@ try:
     from kivy.uix.button import Button
     from kivy.uix.floatlayout import FloatLayout
     from kivy.uix.label import Label
-    from kivy.uix.modalview import ModalView
     from kivy.uix.popup import Popup
     from kivy.uix.recycleview import RecycleView
     from kivy.uix.recycleview.views import RecycleDataViewBehavior
@@ -133,14 +131,14 @@ try:
     from kivy.uix.textinput import TextInput
     from kivy.uix.togglebutton import ToggleButton
     from kivy.uix.widget import Widget
+    from kivy.graphics import Color, Rectangle, RoundedRectangle
     _KIVY = True
 except ImportError as _kivy_err:
     _KIVY = False
-    print(f"[WARN] Kivy not available: {_kivy_err}  —  running engine-only mode")
-
+    print(f"[WARN] Kivy not available: {_kivy_err} — engine-only mode")
 
 # ════════════════════════════════════════════════════════════════════════════
-#  EMBEDDED ENGINE  (DorkMaster v4, stripped of argparse / __main__)
+#  ENGINE
 # ════════════════════════════════════════════════════════════════════════════
 
 def _utcnow() -> datetime:
@@ -166,7 +164,6 @@ def _write_text_safe(path, data: str) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     with open(p, "w", encoding="utf-8", errors="replace", newline="\n") as f:
         f.write(data)
-
 
 # ── models ────────────────────────────────────────────────────────────────
 
@@ -199,7 +196,7 @@ class Finding:
     secrets: list = field(default_factory=list)
     timestamp: datetime = field(default_factory=_utcnow)
     def severity_rank(self):
-        return {"critical":4,"high":3,"medium":2,"low":1,"info":0}.get(self.severity,0)
+        return {"critical":4,"high":3,"medium":2,"low":1,"info":0}.get(self.severity, 0)
 
 @dataclass
 class Target:
@@ -218,7 +215,6 @@ class Target:
     def add_pulled(self, e): self.pulled_files.append(e)
     def note_rule(self, l): self.rule_summary.append(l)
 
-
 # ── session ───────────────────────────────────────────────────────────────
 
 try:
@@ -234,15 +230,17 @@ try:
 except ImportError:
     _SOCKS_OK = False
 
+import random
+
 _UA_POOL = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
 ]
-
-import random
 
 def _is_soft_cancel():
     try:
@@ -251,10 +249,10 @@ def _is_soft_cancel():
         return False
     if task is None:
         return False
-    cancelling = getattr(task, "cancelling", None)
-    if callable(cancelling):
+    fn = getattr(task, "cancelling", None)
+    if callable(fn):
         try:
-            return cancelling() == 0
+            return fn() == 0
         except Exception:
             return False
     return True
@@ -267,7 +265,8 @@ class DorkSession:
         self.proxies = proxy_list or ([proxy] if proxy else [])
         self.delay = delay
         self.max_conn = max_conn
-        self.timeout = aiohttp.ClientTimeout(total=timeout, connect=min(15,timeout)) if _AIOHTTP else None
+        self._timeout = aiohttp.ClientTimeout(
+            total=timeout, connect=min(15, timeout)) if _AIOHTTP else None
         self._session = None
         self._last_req = 0.0
         self._proxy_idx = 0
@@ -296,15 +295,18 @@ class DorkSession:
 
     async def _build_session(self, proxy=None):
         if proxy and proxy.startswith("socks") and _SOCKS_OK:
-            connector = ProxyConnector.from_url(proxy, limit=self.max_conn, ssl=False)
+            connector = ProxyConnector.from_url(
+                proxy, limit=self.max_conn, ssl=False)
             self._proxy_arg = None
         else:
-            connector = TCPConnector(limit=self.max_conn, ssl=False,
-                                     force_close=False, enable_cleanup_closed=True)
+            connector = TCPConnector(
+                limit=self.max_conn, ssl=False,
+                force_close=False, enable_cleanup_closed=True)
             self._proxy_arg = proxy
-        return ClientSession(connector=connector,
-                             cookie_jar=CookieJar(unsafe=True),
-                             timeout=self.timeout)
+        return ClientSession(
+            connector=connector,
+            cookie_jar=CookieJar(unsafe=True),
+            timeout=self._timeout)
 
     async def start(self):
         async with self._lock:
@@ -331,7 +333,8 @@ class DorkSession:
 
     async def _throttle(self):
         now = time.monotonic()
-        wait = max(0.0, self.delay + random.uniform(-1,1) - (now - self._last_req))
+        wait = max(0.0, self.delay + random.uniform(-1, 1)
+                   - (now - self._last_req))
         if wait > 0:
             await asyncio.sleep(wait)
         self._last_req = time.monotonic()
@@ -359,7 +362,8 @@ class DorkSession:
             except Exception as exc:
                 last_exc = exc
                 if attempt < retries - 1:
-                    await asyncio.sleep(2**attempt + random.uniform(0.1,0.9))
+                    await asyncio.sleep(
+                        2 ** attempt + random.uniform(0.1, 0.9))
         raise last_exc
 
     async def get(self, url, retries=3, **kw):
@@ -396,94 +400,92 @@ class DorkSession:
         finally:
             r.release()
 
+# ── dork generators ───────────────────────────────────────────────────────
 
-# ── dork generators (all 20 categories) ──────────────────────────────────
-
-def _d(domain):
-    return f"site:{domain}"
+def _s(d): return f"site:{d}"
 
 DORK_CATS = {
 "credentials": lambda d: [
-    f'{_d(d)} filetype:txt intext:"username" intext:"password"',
-    f'{_d(d)} filetype:cfg intext:"password"',
-    f'{_d(d)} filetype:ini intext:"password="',
-    f'{_d(d)} filetype:yml intext:"password"',
-    f'{_d(d)} filetype:yaml intext:"password"',
-    f'{_d(d)} filetype:json intext:"password"',
-    f'{_d(d)} inurl:"/.htpasswd"',
-    f'{_d(d)} intitle:"index of" "shadow"',
-    f'{_d(d)} filetype:sh intext:"password="',
-    f'{_d(d)} filetype:ps1 intext:"password"',
+    f'{_s(d)} filetype:txt intext:"username" intext:"password"',
+    f'{_s(d)} filetype:cfg intext:"password"',
+    f'{_s(d)} filetype:ini intext:"password="',
+    f'{_s(d)} filetype:yml intext:"password"',
+    f'{_s(d)} filetype:yaml intext:"password"',
+    f'{_s(d)} filetype:json intext:"password"',
+    f'{_s(d)} inurl:"/.htpasswd"',
+    f'{_s(d)} intitle:"index of" "shadow"',
+    f'{_s(d)} filetype:sh intext:"password="',
+    f'{_s(d)} filetype:ps1 intext:"password"',
     f'intext:"username" intext:"password" intext:"{d}" filetype:txt',
 ],
 "logs": lambda d: [
-    f'{_d(d)} intitle:"index of" "access.log"',
-    f'{_d(d)} intitle:"index of" "error.log"',
-    f'{_d(d)} filetype:log intext:"password"',
-    f'{_d(d)} filetype:log intext:"Authorization"',
-    f'{_d(d)} filetype:log intext:"bearer"',
-    f'{_d(d)} filetype:log intext:"api_key"',
-    f'{_d(d)} filetype:log intext:"token"',
-    f'{_d(d)} intitle:"index of" "debug.log"',
-    f'{_d(d)} intitle:"index of" "laravel.log"',
+    f'{_s(d)} intitle:"index of" "access.log"',
+    f'{_s(d)} intitle:"index of" "error.log"',
+    f'{_s(d)} filetype:log intext:"password"',
+    f'{_s(d)} filetype:log intext:"Authorization"',
+    f'{_s(d)} filetype:log intext:"bearer"',
+    f'{_s(d)} filetype:log intext:"api_key"',
+    f'{_s(d)} filetype:log intext:"token"',
+    f'{_s(d)} intitle:"index of" "debug.log"',
+    f'{_s(d)} intitle:"index of" "laravel.log"',
 ],
 "databases": lambda d: [
-    f'{_d(d)} filetype:sql intext:"INSERT INTO" intext:"password"',
-    f'{_d(d)} intitle:"index of" filetype:sql',
-    f'{_d(d)} inurl:"/phpmyadmin/" intext:"Welcome to phpMyAdmin"',
-    f'{_d(d)} inurl:adminer.php intitle:"Login"',
-    f'{_d(d)} filetype:mdb inurl:".mdb"',
-    f'{_d(d)} filetype:sqlite inurl:".sqlite"',
-    f'{_d(d)} inurl:":9200/_cat/indices"',
-    f'{_d(d)} inurl:":27017" intitle:"mongo"',
-    f'{_d(d)} inurl:":6379" intitle:"redis"',
+    f'{_s(d)} filetype:sql intext:"INSERT INTO" intext:"password"',
+    f'{_s(d)} intitle:"index of" filetype:sql',
+    f'{_s(d)} inurl:"/phpmyadmin/" intext:"Welcome to phpMyAdmin"',
+    f'{_s(d)} inurl:adminer.php intitle:"Login"',
+    f'{_s(d)} filetype:mdb inurl:".mdb"',
+    f'{_s(d)} filetype:sqlite inurl:".sqlite"',
+    f'{_s(d)} inurl:":9200/_cat/indices"',
+    f'{_s(d)} inurl:":27017" intitle:"mongo"',
+    f'{_s(d)} inurl:":6379" intitle:"redis"',
 ],
 "git": lambda d: [
-    f'{_d(d)} intitle:"index of" ".git"',
-    f'{_d(d)} inurl:"/.git/config" intext:"url ="',
-    f'{_d(d)} inurl:"/.git/HEAD" intext:"ref:"',
-    f'{_d(d)} intitle:"index of" ".git/logs"',
-    f'{_d(d)} inurl:"/.git/COMMIT_EDITMSG"',
-    f'{_d(d)} intitle:"index of" ".svn"',
+    f'{_s(d)} intitle:"index of" ".git"',
+    f'{_s(d)} inurl:"/.git/config" intext:"url ="',
+    f'{_s(d)} inurl:"/.git/HEAD" intext:"ref:"',
+    f'{_s(d)} intitle:"index of" ".git/logs"',
+    f'{_s(d)} inurl:"/.git/COMMIT_EDITMSG"',
+    f'{_s(d)} intitle:"index of" ".svn"',
     f'intitle:"index of" ".git" "{d}"',
 ],
 "env": lambda d: [
-    f'{_d(d)} filetype:env intext:"DB_PASSWORD"',
-    f'{_d(d)} inurl:".env" intext:"APP_KEY"',
-    f'{_d(d)} inurl:".env.production"',
-    f'{_d(d)} filetype:env "AWS_SECRET_ACCESS_KEY"',
-    f'{_d(d)} filetype:env "AWS_ACCESS_KEY_ID"',
-    f'{_d(d)} filetype:env "STRIPE_SECRET"',
-    f'{_d(d)} filetype:env "OPENAI_API_KEY"',
-    f'{_d(d)} filetype:env "SECRET_KEY"',
-    f'{_d(d)} filetype:env "DATABASE_URL"',
-    f'{_d(d)} filetype:env "PRIVATE_KEY"',
+    f'{_s(d)} filetype:env intext:"DB_PASSWORD"',
+    f'{_s(d)} inurl:".env" intext:"APP_KEY"',
+    f'{_s(d)} inurl:".env.production"',
+    f'{_s(d)} filetype:env "AWS_SECRET_ACCESS_KEY"',
+    f'{_s(d)} filetype:env "AWS_ACCESS_KEY_ID"',
+    f'{_s(d)} filetype:env "STRIPE_SECRET"',
+    f'{_s(d)} filetype:env "OPENAI_API_KEY"',
+    f'{_s(d)} filetype:env "SECRET_KEY"',
+    f'{_s(d)} filetype:env "DATABASE_URL"',
+    f'{_s(d)} filetype:env "PRIVATE_KEY"',
 ],
 "backups": lambda d: [
-    f'{_d(d)} filetype:bak inurl:"wp-config"',
-    f'{_d(d)} intitle:"index of" "backup.zip"',
-    f'{_d(d)} intitle:"index of" "backup.tar.gz"',
-    f'{_d(d)} filetype:zip inurl:"backup"',
-    f'{_d(d)} inurl:".bak" filetype:bak',
-    f'{_d(d)} inurl:".swp"',
-    f'{_d(d)} intitle:"index of" "database.bak"',
+    f'{_s(d)} filetype:bak inurl:"wp-config"',
+    f'{_s(d)} intitle:"index of" "backup.zip"',
+    f'{_s(d)} intitle:"index of" "backup.tar.gz"',
+    f'{_s(d)} filetype:zip inurl:"backup"',
+    f'{_s(d)} inurl:".bak" filetype:bak',
+    f'{_s(d)} inurl:".swp"',
+    f'{_s(d)} intitle:"index of" "database.bak"',
 ],
 "admin": lambda d: [
-    f'{_d(d)} inurl:admin intitle:"login"',
-    f'{_d(d)} inurl:/wp-admin/ intitle:"WordPress"',
-    f'{_d(d)} inurl:"/jenkins" intitle:"Dashboard"',
-    f'{_d(d)} inurl:grafana intitle:"Grafana"',
-    f'{_d(d)} inurl:kibana intitle:"Kibana"',
-    f'{_d(d)} inurl:":5601" intitle:"Kibana"',
-    f'{_d(d)} inurl:":9090" intitle:"Prometheus"',
-    f'{_d(d)} intitle:"RabbitMQ Management"',
+    f'{_s(d)} inurl:admin intitle:"login"',
+    f'{_s(d)} inurl:/wp-admin/ intitle:"WordPress"',
+    f'{_s(d)} inurl:"/jenkins" intitle:"Dashboard"',
+    f'{_s(d)} inurl:grafana intitle:"Grafana"',
+    f'{_s(d)} inurl:kibana intitle:"Kibana"',
+    f'{_s(d)} inurl:":5601" intitle:"Kibana"',
+    f'{_s(d)} inurl:":9090" intitle:"Prometheus"',
+    f'{_s(d)} intitle:"RabbitMQ Management"',
 ],
 "cloud": lambda d: [
     f'site:s3.amazonaws.com inurl:{d}',
     f'site:blob.core.windows.net inurl:{d}',
     f'site:storage.googleapis.com inurl:{d}',
     f'filetype:json intext:"aws_access_key_id"',
-    f'{_d(d)} intext:"s3.amazonaws.com" intext:"bucket"',
+    f'{_s(d)} intext:"s3.amazonaws.com" intext:"bucket"',
 ],
 "s3": lambda d: [
     f'site:s3.amazonaws.com "{d.replace(".","-")}"',
@@ -493,14 +495,14 @@ DORK_CATS = {
     f'site:blob.core.windows.net "{d.replace(".","-")}"',
 ],
 "apikeys": lambda d: [
-    f'{_d(d)} filetype:js intext:"api_key"',
-    f'{_d(d)} filetype:js intext:"AIza"',
-    f'{_d(d)} filetype:js intext:"AKIA"',
-    f'{_d(d)} filetype:js intext:"pk_live_"',
-    f'{_d(d)} filetype:js intext:"eyJ"',
-    f'{_d(d)} inurl:"config.js"',
-    f'{_d(d)} inurl:"service-account.json"',
-    f'{_d(d)} inurl:"google-services.json"',
+    f'{_s(d)} filetype:js intext:"api_key"',
+    f'{_s(d)} filetype:js intext:"AIza"',
+    f'{_s(d)} filetype:js intext:"AKIA"',
+    f'{_s(d)} filetype:js intext:"pk_live_"',
+    f'{_s(d)} filetype:js intext:"eyJ"',
+    f'{_s(d)} inurl:"config.js"',
+    f'{_s(d)} inurl:"service-account.json"',
+    f'{_s(d)} inurl:"google-services.json"',
 ],
 "pastebin": lambda d: [
     f'site:pastebin.com "{d}"',
@@ -519,80 +521,92 @@ DORK_CATS = {
     f'site:gitlab.com "{d}" password',
 ],
 "emails": lambda d: [
-    f'{_d(d)} intext:"@{d}" filetype:csv',
-    f'{_d(d)} intitle:"index of" "email" filetype:txt',
+    f'{_s(d)} intext:"@{d}" filetype:csv',
+    f'{_s(d)} intitle:"index of" "email" filetype:txt',
     f'"{d}" intext:"@" filetype:csv',
     f'site:linkedin.com/in "{d}"',
 ],
 "errors": lambda d: [
-    f'{_d(d)} intext:"Fatal error"',
-    f'{_d(d)} intext:"Stack trace"',
-    f'{_d(d)} intext:"Traceback (most recent call last)"',
-    f'{_d(d)} inurl:"phpinfo.php"',
-    f'{_d(d)} inurl:"/actuator/env"',
-    f'{_d(d)} intitle:"Whoops!" intext:"Laravel"',
-    f'{_d(d)} intitle:"Werkzeug" intext:"Traceback"',
+    f'{_s(d)} intext:"Fatal error"',
+    f'{_s(d)} intext:"Stack trace"',
+    f'{_s(d)} intext:"Traceback (most recent call last)"',
+    f'{_s(d)} inurl:"phpinfo.php"',
+    f'{_s(d)} inurl:"/actuator/env"',
+    f'{_s(d)} intitle:"Whoops!" intext:"Laravel"',
+    f'{_s(d)} intitle:"Werkzeug" intext:"Traceback"',
 ],
 "cms": lambda d: [
-    f'{_d(d)} inurl:wp-config.php.bak',
-    f'{_d(d)} inurl:"/wp-json/wp/v2/users"',
-    f'{_d(d)} inurl:xmlrpc.php',
-    f'{_d(d)} inurl:"/administrator/index.php" intitle:"Joomla"',
-    f'{_d(d)} inurl:"/sites/default/settings.php" intitle:"Drupal"',
+    f'{_s(d)} inurl:wp-config.php.bak',
+    f'{_s(d)} inurl:"/wp-json/wp/v2/users"',
+    f'{_s(d)} inurl:xmlrpc.php',
+    f'{_s(d)} inurl:"/administrator/index.php" intitle:"Joomla"',
+    f'{_s(d)} inurl:"/sites/default/settings.php" intitle:"Drupal"',
 ],
 "network": lambda d: [
-    f'{_d(d)} intitle:"webcamXP" inurl:8080',
-    f'{_d(d)} intitle:"Live View / - AXIS"',
-    f'{_d(d)} intitle:"Hikvision" inurl:login',
-    f'{_d(d)} inurl:":10000" intitle:"Webmin"',
-    f'{_d(d)} intitle:"pfSense" inurl:index.php',
+    f'{_s(d)} intitle:"webcamXP" inurl:8080',
+    f'{_s(d)} intitle:"Live View / - AXIS"',
+    f'{_s(d)} intitle:"Hikvision" inurl:login',
+    f'{_s(d)} inurl:":10000" intitle:"Webmin"',
+    f'{_s(d)} intitle:"pfSense" inurl:index.php',
 ],
 "jira": lambda d: [
-    f'{_d(d)} inurl:/jira/ intext:"issue"',
-    f'{_d(d)} inurl:"/confluence/" intext:"spaces"',
-    f'{_d(d)} intitle:"Dashboard - Jira"',
+    f'{_s(d)} inurl:/jira/ intext:"issue"',
+    f'{_s(d)} inurl:"/confluence/" intext:"spaces"',
+    f'{_s(d)} intitle:"Dashboard - Jira"',
     f'site:*.atlassian.net "{d}"',
 ],
 "xmlrpc": lambda d: [
-    f'{_d(d)} inurl:"xmlrpc.php"',
-    f'{_d(d)} inurl:"/swagger-ui.html"',
-    f'{_d(d)} inurl:"/api-docs"',
-    f'{_d(d)} intitle:"Swagger UI"',
+    f'{_s(d)} inurl:"xmlrpc.php"',
+    f'{_s(d)} inurl:"/swagger-ui.html"',
+    f'{_s(d)} inurl:"/api-docs"',
+    f'{_s(d)} intitle:"Swagger UI"',
 ],
 "stealer": lambda d: [
-    f'{_d(d)} intitle:"index of" "stealer" filetype:txt',
-    f'{_d(d)} intitle:"index of" "combolist"',
-    f'{_d(d)} filetype:txt intext:"URL:" intext:"USER:" intext:"PASS:"',
+    f'{_s(d)} intitle:"index of" "stealer" filetype:txt',
+    f'{_s(d)} intitle:"index of" "combolist"',
+    f'{_s(d)} filetype:txt intext:"URL:" intext:"USER:" intext:"PASS:"',
     f'intext:"{d}" intext:"password" filetype:txt -site:{d}',
 ],
 }
 
+ALL_CATS = list(DORK_CATS.keys())
 
-# ── secret scanner (core patterns) ───────────────────────────────────────
+# ── secret scanner ────────────────────────────────────────────────────────
 
 _SECRET_PATTERNS = [
-    ("AWS_ACCESS_KEY",   re.compile(r'AKIA[0-9A-Z]{16}')),
-    ("GCP_API_KEY",      re.compile(r'AIza[0-9A-Za-z\-_]{35}')),
-    ("GITHUB_TOKEN",     re.compile(r'ghp_[a-zA-Z0-9]{36}')),
-    ("GITHUB_TOKEN_V2",  re.compile(r'github_pat_[a-zA-Z0-9_]{82}')),
-    ("GITLAB_TOKEN",     re.compile(r'glpat-[a-zA-Z0-9_\-]{20,}')),
-    ("STRIPE_SECRET",    re.compile(r'sk_live_[a-zA-Z0-9]{24,}')),
-    ("OPENAI_KEY",       re.compile(r'sk-[a-zA-Z0-9]{20}T3BlbkFJ[a-zA-Z0-9]{20}')),
-    ("OPENAI_KEY_V2",    re.compile(r'sk-proj-[a-zA-Z0-9_\-]{40,}')),
-    ("ANTHROPIC_KEY",    re.compile(r'sk-ant-[a-zA-Z0-9_\-]{40,}')),
-    ("SLACK_TOKEN",      re.compile(r'xox[baprs]-[0-9]{10,}-[0-9]{10,}-[a-zA-Z0-9]+')),
-    ("SLACK_WEBHOOK",    re.compile(r'https://hooks\.slack\.com/services/T[a-zA-Z0-9]+/B[a-zA-Z0-9]+/[a-zA-Z0-9]+')),
-    ("DISCORD_WEBHOOK",  re.compile(r'https://discord\.com/api/webhooks/\d+/[a-zA-Z0-9_\-]+')),
-    ("PRIVATE_KEY_RSA",  re.compile(r'-----BEGIN RSA PRIVATE KEY-----')),
+    ("AWS_ACCESS_KEY",      re.compile(r'AKIA[0-9A-Z]{16}')),
+    ("AWS_ACCESS_KEY_V2",   re.compile(r'ASIA[0-9A-Z]{16}')),
+    ("GCP_API_KEY",         re.compile(r'AIza[0-9A-Za-z\-_]{35}')),
+    ("GITHUB_TOKEN",        re.compile(r'ghp_[a-zA-Z0-9]{36}')),
+    ("GITHUB_TOKEN_V2",     re.compile(r'github_pat_[a-zA-Z0-9_]{82}')),
+    ("GITLAB_TOKEN",        re.compile(r'glpat-[a-zA-Z0-9_\-]{20,}')),
+    ("STRIPE_SECRET",       re.compile(r'sk_live_[a-zA-Z0-9]{24,}')),
+    ("STRIPE_PK",           re.compile(r'pk_live_[a-zA-Z0-9]{24,}')),
+    ("OPENAI_KEY",          re.compile(r'sk-[a-zA-Z0-9]{20}T3BlbkFJ[a-zA-Z0-9]{20}')),
+    ("OPENAI_KEY_V2",       re.compile(r'sk-proj-[a-zA-Z0-9_\-]{40,}')),
+    ("ANTHROPIC_KEY",       re.compile(r'sk-ant-[a-zA-Z0-9_\-]{40,}')),
+    ("SLACK_TOKEN",         re.compile(r'xox[baprs]-[0-9]{10,}-[0-9]{10,}-[a-zA-Z0-9]+')),
+    ("SLACK_WEBHOOK",       re.compile(r'https://hooks\.slack\.com/services/T[a-zA-Z0-9]+/B[a-zA-Z0-9]+/[a-zA-Z0-9]+')),
+    ("DISCORD_WEBHOOK",     re.compile(r'https://discord\.com/api/webhooks/\d+/[a-zA-Z0-9_\-]+')),
+    ("DISCORD_TOKEN",       re.compile(r'[MN][a-zA-Z0-9]{23}\.[a-zA-Z0-9\-_]{6}\.[a-zA-Z0-9\-_]{27}')),
+    ("TELEGRAM_BOT",        re.compile(r'\d{9,10}:[a-zA-Z0-9_\-]{35}')),
+    ("SENDGRID_KEY",        re.compile(r'SG\.[a-zA-Z0-9\-_]{22}\.[a-zA-Z0-9\-_]{43}')),
+    ("TWILIO_SID",          re.compile(r'AC[a-zA-Z0-9]{32}')),
+    ("FIREBASE_KEY",        re.compile(r'AAAA[A-Za-z0-9_\-]{7}:[A-Za-z0-9_\-]{140}')),
+    ("PRIVATE_KEY_RSA",     re.compile(r'-----BEGIN RSA PRIVATE KEY-----')),
     ("PRIVATE_KEY_OPENSSH", re.compile(r'-----BEGIN OPENSSH PRIVATE KEY-----')),
-    ("DB_PASSWORD",      re.compile(r'DB_PASS(?:WORD)?\s*[=:]\s*\S+')),
-    ("DATABASE_URL",     re.compile(r'(?:mysql|postgres|postgresql|mongodb|redis)://[^\s"\']+')),
-    ("BEARER_TOKEN",     re.compile(r'Bearer\s+[a-zA-Z0-9\-_\.]{20,}')),
-    ("JWT",              re.compile(r'eyJ[a-zA-Z0-9\-_]+\.[a-zA-Z0-9\-_]+\.[a-zA-Z0-9\-_]+')),
-    ("SECRET_KEY_GENERIC", re.compile(r'(?i)(?:secret[_\-]?key|api[_\-]?key)\s*[=:]\s*["\']?([a-zA-Z0-9\-_]{16,})')),
-    ("SENDGRID_KEY",     re.compile(r'SG\.[a-zA-Z0-9\-_]{22}\.[a-zA-Z0-9\-_]{43}')),
-    ("TWILIO_SID",       re.compile(r'AC[a-zA-Z0-9]{32}')),
-    ("FIREBASE_KEY",     re.compile(r'AAAA[A-Za-z0-9_\-]{7}:[A-Za-z0-9_\-]{140}')),
+    ("PRIVATE_KEY_EC",      re.compile(r'-----BEGIN EC PRIVATE KEY-----')),
+    ("DB_PASSWORD",         re.compile(r'DB_PASS(?:WORD)?\s*[=:]\s*\S+')),
+    ("DATABASE_URL",        re.compile(r'(?:mysql|postgres|postgresql|mongodb|redis)://[^\s"\']+')),
+    ("BEARER_TOKEN",        re.compile(r'Bearer\s+[a-zA-Z0-9\-_\.]{20,}')),
+    ("JWT",                 re.compile(r'eyJ[a-zA-Z0-9\-_]+\.[a-zA-Z0-9\-_]+\.[a-zA-Z0-9\-_]+')),
+    ("SECRET_KEY_GENERIC",  re.compile(r'(?i)(?:secret[_\-]?key|api[_\-]?key)\s*[=:]\s*["\']?([a-zA-Z0-9\-_]{16,})')),
+    ("DIGITALOCEAN_TOKEN",  re.compile(r'dop_v1_[a-f0-9]{64}')),
+    ("HEROKU_API_KEY",      re.compile(r'heroku[a-zA-Z0-9]{32}')),
+    ("SHOPIFY_TOKEN",       re.compile(r'shpat_[a-fA-F0-9]{32}')),
+    ("HUGGINGFACE_TOKEN",   re.compile(r'hf_[a-zA-Z0-9]{34,}')),
+    ("PAYPAL_SECRET",       re.compile(r'(?i)paypal.{0,30}secret.{0,10}["\']?([A-Za-z0-9\-_]{32,})')),
+    ("BASIC_AUTH",          re.compile(r'Authorization:\s*Basic\s+[a-zA-Z0-9+/=]{20,}')),
 ]
 
 def scan_text(text: str, source_url: str = "") -> list:
@@ -614,7 +628,6 @@ def scan_text(text: str, source_url: str = "") -> list:
                     source_url=source_url,
                 ))
     return hits
-
 
 # ── search scrapers ───────────────────────────────────────────────────────
 
@@ -640,15 +653,15 @@ def _extract_bing_urls(html):
             urls.append(url)
     return list(dict.fromkeys(urls))
 
-
 async def google_search(query, session, pages=2):
     results = []
     for page in range(pages):
-        start = page * 10
-        params = urllib.parse.urlencode({"q":query,"start":start,"num":10,"hl":"en","safe":"off"})
-        url = f"https://www.google.com/search?{params}"
+        params = urllib.parse.urlencode({
+            "q": query, "start": page*10,
+            "num": 10, "hl": "en", "safe": "off"})
         try:
-            body = await session.get_text(url, retries=2)
+            body = await session.get_text(
+                f"https://www.google.com/search?{params}", retries=2)
             if not body or _is_captcha(body):
                 await asyncio.sleep(3)
                 continue
@@ -664,30 +677,32 @@ async def google_search(query, session, pages=2):
 async def bing_search(query, session, pages=2):
     results = []
     for page in range(pages):
-        params = urllib.parse.urlencode({"q":query,"first":page*10+1,"count":10})
-        url = f"https://www.bing.com/search?{params}"
+        params = urllib.parse.urlencode({
+            "q": query, "first": page*10+1, "count": 10})
         try:
-            body = await session.get_text(url, retries=2)
+            body = await session.get_text(
+                f"https://www.bing.com/search?{params}", retries=2)
             if not body:
                 break
-            for u in _extract_bing_urls(body):
+            urls = _extract_bing_urls(body)
+            for u in urls:
                 results.append(DorkResult(query=query, url=u,
                                           source_engine="bing"))
-            if not _extract_bing_urls(body):
+            if not urls:
                 break
         except Exception:
             break
     return results
 
 async def ddg_search(query, session):
-    data = urllib.parse.urlencode({"q":query,"b":"","kl":"us-en"})
-    headers = {"Content-Type":"application/x-www-form-urlencoded",
-               "Referer":"https://html.duckduckgo.com/"}
+    data = urllib.parse.urlencode({"q": query, "b": "", "kl": "us-en"})
     try:
         body = await session.post_text(
             "https://html.duckduckgo.com/html/",
             data=data,
-            headers={**session._headers(), **headers},
+            headers={**session._headers(),
+                     "Content-Type": "application/x-www-form-urlencoded",
+                     "Referer": "https://html.duckduckgo.com/"},
             retries=2)
         if not body:
             return []
@@ -697,7 +712,6 @@ async def ddg_search(query, session):
                 for u in urls]
     except Exception:
         return []
-
 
 # ── file pull ─────────────────────────────────────────────────────────────
 
@@ -710,13 +724,15 @@ async def pull_url(url, session, size_limit_mb=5.0):
         finally:
             r.release()
         if len(data) > size_limit:
-            return {"url":url,"error":"too large","content":"","type":"too_large"}
-        return {"url":url,"content":data.decode("utf-8",errors="replace"),"type":"text"}
+            return {"url": url, "error": "too large",
+                    "content": "", "type": "too_large"}
+        return {"url": url,
+                "content": data.decode("utf-8", errors="replace"),
+                "type": "text"}
     except Exception as exc:
-        return {"url":url,"error":str(exc),"content":"","type":"error"}
+        return {"url": url, "error": str(exc), "content": "", "type": "error"}
 
-
-# ── engine ────────────────────────────────────────────────────────────────
+# ── scan config + engine ──────────────────────────────────────────────────
 
 @dataclass
 class ScanConfig:
@@ -736,8 +752,8 @@ class ScanEngine:
     def __init__(self, config: ScanConfig,
                  on_log=None, on_url=None, on_finding=None):
         self.config = config
-        self.on_log = on_log or (lambda msg, lv="info": None)
-        self.on_url = on_url or (lambda url: None)
+        self.on_log = on_log or (lambda m, lv="info": None)
+        self.on_url = on_url or (lambda u: None)
         self.on_finding = on_finding or (lambda f: None)
         self._stop = False
 
@@ -750,11 +766,9 @@ class ScanEngine:
             proxy=cfg.proxy,
             delay=cfg.delay,
             max_conn=cfg.threads,
-            timeout=20,
-        )
+            timeout=20)
         await session.start()
         target = Target(domain=cfg.domain)
-
         try:
             await self._phase_dorks(target, session)
             if not cfg.no_probe and not self._stop:
@@ -762,7 +776,6 @@ class ScanEngine:
         finally:
             await session.close()
             self._write_report(target)
-
         return target
 
     async def _phase_dorks(self, target, session):
@@ -793,11 +806,11 @@ class ScanEngine:
                             r = []
                         results.extend(r)
                     except Exception as exc:
-                        self.on_log(f"search error [{eng}]: {exc}", "warn")
+                        self.on_log(f"[{eng}] {exc}", "warn")
             return results
 
-        batches = await asyncio.gather(*[fire(q) for q in queries],
-                                        return_exceptions=True)
+        batches = await asyncio.gather(
+            *[fire(q) for q in queries], return_exceptions=True)
         for batch in batches:
             if isinstance(batch, list):
                 for r in batch:
@@ -805,10 +818,11 @@ class ScanEngine:
                     target.add_result(r)
                     self.on_url(r.url)
 
-        self.on_log(f"Dork phase: {len(target.dork_results)} unique URLs", "ok")
+        self.on_log(
+            f"Dork phase done: {len(target.dork_results)} unique URLs", "ok")
 
     async def _phase_probe(self, target, session):
-        # env pull
+        # .env pull
         env_urls = [r.url for r in target.dork_results
                     if ".env" in r.url.lower()][:10]
         for url in env_urls:
@@ -820,79 +834,137 @@ class ScanEngine:
                 hits = scan_text(pf["content"], url)
                 if hits:
                     f = Finding(
-                        severity="critical", category="env_exposure",
-                        title=f".env pulled: {len(hits)} secrets",
+                        severity="critical",
+                        category="env_exposure",
+                        title=f".env exposed — {len(hits)} secrets",
                         url=url,
                         evidence="\n".join(
                             f"{h.pattern_name}: {h.matched_value[:80]}"
                             for h in hits[:20]),
-                        secrets=hits,
-                    )
+                        secrets=hits)
+                    target.add_finding(f)
+                    self.on_finding(f)
+                else:
+                    f = Finding(
+                        severity="medium",
+                        category="env_exposure",
+                        title=".env reachable (no pattern match)",
+                        url=url)
                     target.add_finding(f)
                     self.on_finding(f)
 
-        # git check
-        git_urls = [r.url for r in target.dork_results if ".git" in r.url][:5]
+        # .git check
+        git_urls = [r.url for r in target.dork_results
+                    if ".git" in r.url][:5]
         for url in git_urls:
             if self._stop:
                 break
-            base = url.split("/.git/")[0] + "/.git" if "/.git/" in url else url.rstrip("/") + "/.git"
-            for gf in ["HEAD","config","COMMIT_EDITMSG"]:
+            base = (url.split("/.git/")[0] + "/.git"
+                    if "/.git/" in url
+                    else url.rstrip("/") + "/.git")
+            for gf in ["HEAD", "config", "COMMIT_EDITMSG"]:
                 try:
-                    text = await session.get_text(base + "/" + gf, retries=1)
+                    text = await session.get_text(
+                        base + "/" + gf, retries=1)
                     if text and len(text) > 10:
                         hits = scan_text(text, url)
                         f = Finding(
-                            severity="high" if not hits else "critical",
+                            severity="critical" if hits else "high",
                             category="git_exposure",
-                            title=f"Exposed .git/{gf}",
+                            title=f"Exposed .git/{gf}"
+                                  + (f" — {len(hits)} secrets" if hits else ""),
                             url=url,
                             evidence=text[:1000],
-                            secrets=hits,
-                        )
+                            secrets=hits)
                         target.add_finding(f)
                         self.on_finding(f)
                         break
                 except Exception:
                     pass
 
-        # secret scan all pulled
-        for pf in target.pulled_files:
-            content = pf.get("content","")
-            if not content:
-                continue
-            hits = scan_text(content, pf.get("url",""))
-            if hits:
+        # SQL files
+        sql_urls = [r.url for r in target.dork_results
+                    if r.url.lower().endswith((".sql", ".sql.gz"))][:5]
+        for url in sql_urls:
+            if self._stop:
+                break
+            pf = await pull_url(url, session, self.config.size_limit_mb)
+            if pf and pf.get("content"):
+                target.add_pulled(pf)
+                hits = scan_text(pf["content"], url)
                 f = Finding(
-                    severity="critical", category="secrets",
-                    title=f"Secrets in {pf.get('url','')[:50]}",
-                    url=pf.get("url",""),
-                    evidence="\n".join(
-                        f"{h.pattern_name}: {h.matched_value[:80]}"
-                        for h in hits[:20]),
-                    secrets=hits,
-                )
+                    severity="critical" if hits else "high",
+                    category="sql_exposure",
+                    title=f"Exposed SQL dump"
+                          + (f" — {len(hits)} secrets" if hits else ""),
+                    url=url,
+                    evidence=pf["content"][:500],
+                    secrets=hits)
                 target.add_finding(f)
                 self.on_finding(f)
 
-        self.on_log(f"Probe phase: {len(target.findings)} findings", "ok")
+        # log files
+        log_urls = [r.url for r in target.dork_results
+                    if r.url.lower().endswith((".log", ".txt"))][:5]
+        for url in log_urls:
+            if self._stop:
+                break
+            pf = await pull_url(url, session, self.config.size_limit_mb)
+            if pf and pf.get("content"):
+                target.add_pulled(pf)
+                hits = scan_text(pf["content"], url)
+                if hits:
+                    f = Finding(
+                        severity="high",
+                        category="log_exposure",
+                        title=f"Log file with {len(hits)} secrets",
+                        url=url,
+                        evidence="\n".join(
+                            f"{h.pattern_name}: {h.matched_value[:80]}"
+                            for h in hits[:10]),
+                        secrets=hits)
+                    target.add_finding(f)
+                    self.on_finding(f)
+
+        # secret scan everything pulled so far
+        for pf in target.pulled_files:
+            content = pf.get("content", "")
+            if not content:
+                continue
+            hits = scan_text(content, pf.get("url", ""))
+            if hits:
+                f = Finding(
+                    severity="critical",
+                    category="secrets",
+                    title=f"Secrets in pulled file — {len(hits)} hits",
+                    url=pf.get("url", ""),
+                    evidence="\n".join(
+                        f"{h.pattern_name}: {h.matched_value[:80]}"
+                        for h in hits[:20]),
+                    secrets=hits)
+                target.add_finding(f)
+                self.on_finding(f)
+
+        self.on_log(
+            f"Probe phase done: {len(target.findings)} findings", "ok")
 
     def _write_report(self, target):
-        out_dir = Path(self.config.output_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
+        out = Path(self.config.output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+
         lines = [
             "=" * 60,
             f"DorkMaster Report — {target.domain}",
             f"Generated: {_utcnow().isoformat()}",
             "=" * 60,
-            f"URLs found:  {len(target.urls)}",
-            f"Files pulled: {len(target.pulled_files)}",
-            f"Findings:    {len(target.findings)}",
+            f"URLs:     {len(target.urls)}",
+            f"Pulled:   {len(target.pulled_files)}",
+            f"Findings: {len(target.findings)}",
             "",
         ]
-        for i, f in enumerate(sorted(target.findings,
-                                      key=lambda x: x.severity_rank(),
-                                      reverse=True), 1):
+        for i, f in enumerate(sorted(
+                target.findings,
+                key=lambda x: x.severity_rank(), reverse=True), 1):
             lines += [
                 f"[{i}] {f.severity.upper()} | {f.category}",
                 f"    {f.title}",
@@ -901,7 +973,7 @@ class ScanEngine:
             ]
         lines.append("ALL URLS:")
         lines.extend(f"  {u}" for u in target.urls)
-        _write_text_safe(out_dir / "report.txt", "\n".join(lines) + "\n")
+        _write_text_safe(out / "report.txt", "\n".join(lines) + "\n")
 
         data = {
             "domain": target.domain,
@@ -914,9 +986,9 @@ class ScanEngine:
                                 key=lambda x: x.severity_rank(), reverse=True)
             ]
         }
-        _write_text_safe(out_dir / "report.json",
+        _write_text_safe(out / "report.json",
                          json.dumps(data, indent=2, ensure_ascii=False))
-        self.on_log(f"Report written to {out_dir}", "ok")
+        self.on_log(f"Report saved → {out}", "ok")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -925,7 +997,6 @@ class ScanEngine:
 
 if _KIVY:
 
-    # ── color palette ─────────────────────────────────────────────────────
     BG      = (0.06, 0.06, 0.08, 1)
     PANEL   = (0.10, 0.10, 0.13, 1)
     ACCENT  = (0.20, 0.60, 1.00, 1)
@@ -936,62 +1007,114 @@ if _KIVY:
     DIM     = (0.50, 0.50, 0.55, 1)
 
     SEV_COL = {
-        "critical": (1.0, 0.25, 0.25, 1),
-        "high":     (1.0, 0.55, 0.10, 1),
-        "medium":   (1.0, 0.80, 0.10, 1),
-        "low":      (0.2, 0.80, 0.50, 1),
-        "info":     (0.5, 0.50, 0.55, 1),
+        "critical": [1.0, 0.25, 0.25, 1],
+        "high":     [1.0, 0.55, 0.10, 1],
+        "medium":   [1.0, 0.80, 0.10, 1],
+        "low":      [0.2, 0.80, 0.50, 1],
+        "info":     [0.5, 0.50, 0.55, 1],
     }
 
     KV = """
 #:import dp kivy.metrics.dp
 
-<RootLayout>:
+<DarkLabel@Label>:
+    color: app.TEXT
+    markup: True
+
+<DarkInput@TextInput>:
+    background_color: app.PANEL
+    foreground_color: app.TEXT
+    cursor_color: app.ACCENT
+    hint_text_color: app.DIM
+    padding: dp(10), dp(10)
+    multiline: False
+    font_size: dp(14)
+
+<FlatButton@Button>:
+    background_normal: ''
+    background_down: ''
+    background_color: app.PANEL
+    color: app.ACCENT
+    font_size: dp(13)
+
+<AccentButton@Button>:
+    background_normal: ''
+    background_down: ''
+    background_color: app.ACCENT
+    color: 1,1,1,1
+    font_size: dp(14)
+    bold: True
+
+<DangerButton@Button>:
+    background_normal: ''
+    background_down: ''
+    background_color: app.DANGER
+    color: 1,1,1,1
+    font_size: dp(14)
+
+<FindingRow>:
     orientation: 'vertical'
+    padding: dp(10), dp(6)
+    spacing: dp(2)
+    size_hint_y: None
+    height: dp(78)
+    canvas.before:
+        Color:
+            rgba: 0.12, 0.12, 0.15, 1
+        RoundedRectangle:
+            pos: self.x + dp(4), self.y + dp(2)
+            size: self.width - dp(8), self.height - dp(4)
+            radius: [dp(8)]
+    Label:
+        text: root.sev_text
+        font_size: dp(11)
+        bold: True
+        color: root.sev_color
+        size_hint_y: None
+        height: dp(18)
+        halign: 'left'
+        text_size: self.size
+    Label:
+        text: root.title_text
+        font_size: dp(13)
+        color: 0.92, 0.92, 0.92, 1
+        size_hint_y: None
+        height: dp(22)
+        halign: 'left'
+        text_size: self.size
+    Label:
+        text: root.url_text
+        font_size: dp(10)
+        color: 0.5, 0.5, 0.55, 1
+        size_hint_y: None
+        height: dp(16)
+        halign: 'left'
+        text_size: self.size
+
+<ScanScreen>:
+    name: 'scan'
     canvas.before:
         Color:
             rgba: app.BG
         Rectangle:
             pos: self.pos
             size: self.size
-
-<HeaderBar>:
-    size_hint_y: None
-    height: dp(52)
-    padding: dp(12), dp(8)
-    canvas.before:
-        Color:
-            rgba: app.PANEL
-        Rectangle:
-            pos: self.pos
-            size: self.size
-    Label:
-        text: 'DorkMaster'
-        font_size: dp(18)
-        bold: True
-        color: app.ACCENT
-        size_hint_x: None
-        width: dp(160)
-    Widget:
-    Label:
-        id: status_lbl
-        text: 'idle'
-        font_size: dp(12)
-        color: app.DIM
-        size_hint_x: None
-        width: dp(120)
-        halign: 'right'
-        text_size: self.size
-
-<ScanScreen>:
-    name: 'scan'
     ScrollView:
         BoxLayout:
             orientation: 'vertical'
             size_hint_y: None
             height: self.minimum_height
-            padding: dp(14)
+            padding: dp(14), dp(14)
             spacing: dp(10)
+
+            Label:
+                text: '[b][color=33aaff]DorkMaster[/color] v4.1[/b]'
+                markup: True
+                font_size: dp(20)
+                size_hint_y: None
+                height: dp(36)
+                halign: 'left'
+                text_size: self.size
 
             Label:
                 text: 'Target Domain'
@@ -1002,20 +1125,14 @@ if _KIVY:
                 halign: 'left'
                 text_size: self.size
 
-            TextInput:
+            DarkInput:
                 id: domain_input
                 hint_text: 'example.com'
-                font_size: dp(15)
                 size_hint_y: None
-                height: dp(42)
-                background_color: app.PANEL
-                foreground_color: app.TEXT
-                cursor_color: app.ACCENT
-                padding: dp(10), dp(10)
-                multiline: False
+                height: dp(44)
 
             Label:
-                text: 'Engines'
+                text: 'Search Engines'
                 color: app.DIM
                 font_size: dp(12)
                 size_hint_y: None
@@ -1025,21 +1142,23 @@ if _KIVY:
 
             BoxLayout:
                 size_hint_y: None
-                height: dp(40)
-                spacing: dp(8)
-                EngineToggle:
+                height: dp(38)
+                spacing: dp(6)
+                CatToggle:
                     id: tb_google
                     text: 'Google'
-                    state: 'down'
-                EngineToggle:
+                    active: True
+                CatToggle:
                     id: tb_bing
                     text: 'Bing'
-                EngineToggle:
+                    active: False
+                CatToggle:
                     id: tb_ddg
                     text: 'DDG'
+                    active: False
 
             Label:
-                text: 'Categories'
+                text: 'Dork Categories'
                 color: app.DIM
                 font_size: dp(12)
                 size_hint_y: None
@@ -1051,7 +1170,7 @@ if _KIVY:
                 id: cat_grid
 
             Label:
-                text: 'Proxy (optional)'
+                text: 'Proxy  (optional)'
                 color: app.DIM
                 font_size: dp(12)
                 size_hint_y: None
@@ -1059,79 +1178,99 @@ if _KIVY:
                 halign: 'left'
                 text_size: self.size
 
-            TextInput:
+            DarkInput:
                 id: proxy_input
                 hint_text: 'socks5h://127.0.0.1:9050'
-                font_size: dp(13)
                 size_hint_y: None
-                height: dp(38)
-                background_color: app.PANEL
-                foreground_color: app.TEXT
-                cursor_color: app.ACCENT
-                padding: dp(10), dp(8)
-                multiline: False
+                height: dp(40)
+
+            Label:
+                text: 'Delay (sec)'
+                color: app.DIM
+                font_size: dp(12)
+                size_hint_y: None
+                height: dp(20)
+                halign: 'left'
+                text_size: self.size
+
+            DarkInput:
+                id: delay_input
+                hint_text: '3.0'
+                size_hint_y: None
+                height: dp(40)
+
+            Label:
+                text: 'Pages per query'
+                color: app.DIM
+                font_size: dp(12)
+                size_hint_y: None
+                height: dp(20)
+                halign: 'left'
+                text_size: self.size
+
+            DarkInput:
+                id: pages_input
+                hint_text: '2'
+                size_hint_y: None
+                height: dp(40)
 
             BoxLayout:
                 size_hint_y: None
                 height: dp(44)
                 spacing: dp(10)
-
-                Button:
+                AccentButton:
                     id: scan_btn
                     text: 'SCAN'
-                    font_size: dp(15)
-                    bold: True
-                    background_color: app.ACCENT
-                    background_normal: ''
                     on_release: app.start_scan()
-
-                Button:
+                DangerButton:
                     id: stop_btn
                     text: 'STOP'
-                    font_size: dp(15)
-                    background_color: app.DANGER
-                    background_normal: ''
                     disabled: True
                     on_release: app.stop_scan()
 
-            Button:
-                text: 'VIEW RESULTS'
-                font_size: dp(13)
+            Label:
+                id: status_lbl
+                text: 'idle'
+                color: app.DIM
+                font_size: dp(12)
                 size_hint_y: None
-                height: dp(38)
-                background_color: app.PANEL
-                background_normal: ''
-                color: app.ACCENT
-                on_release: app.goto_results()
+                height: dp(24)
+                halign: 'left'
+                text_size: self.size
 
 <ResultsScreen>:
     name: 'results'
+    canvas.before:
+        Color:
+            rgba: app.BG
+        Rectangle:
+            pos: self.pos
+            size: self.size
     BoxLayout:
         orientation: 'vertical'
-        padding: dp(10)
+        padding: dp(10), dp(10)
         spacing: dp(8)
 
-        BoxLayout:
+        Label:
+            id: results_title
+            text: 'Results'
+            font_size: dp(16)
+            bold: True
+            color: app.TEXT
             size_hint_y: None
-            height: dp(40)
-            spacing: dp(8)
+            height: dp(32)
+            halign: 'left'
+            text_size: self.size
 
-            Button:
-                text: '< Back'
-                size_hint_x: None
-                width: dp(80)
-                font_size: dp(13)
-                background_color: app.PANEL
-                background_normal: ''
-                color: app.ACCENT
-                on_release: app.goto_scan()
-
-            Label:
-                id: results_title
-                text: 'Results'
-                font_size: dp(15)
-                bold: True
-                color: app.TEXT
+        Label:
+            id: results_stats
+            text: ''
+            font_size: dp(12)
+            color: app.DIM
+            size_hint_y: None
+            height: dp(20)
+            halign: 'left'
+            text_size: self.size
 
         RecycleView:
             id: findings_rv
@@ -1140,42 +1279,50 @@ if _KIVY:
                 orientation: 'vertical'
                 size_hint_y: None
                 height: self.minimum_height
-                default_size: None, dp(72)
+                default_size: None, dp(78)
                 default_size_hint: 1, None
+                spacing: dp(6)
+                padding: dp(4)
+
+        Label:
+            id: no_findings_lbl
+            text: ''
+            font_size: dp(13)
+            color: app.DIM
+            size_hint_y: None
+            height: dp(40)
+            halign: 'center'
+            text_size: self.size
 
 <LogScreen>:
     name: 'log'
+    canvas.before:
+        Color:
+            rgba: app.BG
+        Rectangle:
+            pos: self.pos
+            size: self.size
     BoxLayout:
         orientation: 'vertical'
-        padding: dp(10)
+        padding: dp(10), dp(10)
         spacing: dp(8)
 
-        BoxLayout:
+        Label:
+            text: 'Live Log'
+            font_size: dp(16)
+            bold: True
+            color: app.TEXT
             size_hint_y: None
-            height: dp(40)
-            spacing: dp(8)
-
-            Button:
-                text: '< Back'
-                size_hint_x: None
-                width: dp(80)
-                font_size: dp(13)
-                background_color: app.PANEL
-                background_normal: ''
-                color: app.ACCENT
-                on_release: app.goto_scan()
-
-            Label:
-                text: 'Live Log'
-                font_size: dp(15)
-                bold: True
-                color: app.TEXT
+            height: dp(32)
+            halign: 'left'
+            text_size: self.size
 
         ScrollView:
             id: log_scroll
             Label:
                 id: log_label
                 text: ''
+                markup: True
                 font_size: dp(11)
                 color: app.TEXT
                 size_hint_y: None
@@ -1185,68 +1332,26 @@ if _KIVY:
                 valign: 'top'
                 halign: 'left'
 
-<EngineToggle@ToggleButton>:
-    group: 'engines'
-    allow_no_selection: False
-    font_size: dp(13)
-    background_normal: ''
-    background_down: ''
+<CatToggle>:
+    size_hint_y: None
+    height: dp(32)
+    font_size: dp(12)
     canvas.before:
         Color:
-            rgba: app.ACCENT if self.state == 'down' else app.PANEL
+            rgba: app.ACCENT if self.active else app.PANEL
         RoundedRectangle:
             pos: self.pos
             size: self.size
             radius: [dp(6)]
-
-<FindingRow>:
-    orientation: 'vertical'
-    padding: dp(10), dp(6)
-    spacing: dp(2)
-    canvas.before:
-        Color:
-            rgba: app.PANEL
-        RoundedRectangle:
-            pos: self.pos
-            size: self.size
-            radius: [dp(6)]
-    Label:
-        id: sev_lbl
-        text: root.severity_text
-        font_size: dp(11)
-        bold: True
-        color: root.sev_color
-        size_hint_y: None
-        height: dp(18)
-        halign: 'left'
-        text_size: self.size
-    Label:
-        id: title_lbl
-        text: root.title_text
-        font_size: dp(13)
-        color: app.TEXT
-        size_hint_y: None
-        height: dp(20)
-        halign: 'left'
-        text_size: self.size
-    Label:
-        id: url_lbl
-        text: root.url_text
-        font_size: dp(10)
-        color: app.DIM
-        size_hint_y: None
-        height: dp(16)
-        halign: 'left'
-        text_size: self.size
 """
 
-    # ── custom widgets ─────────────────────────────────────────────────────
+    # ── widgets ───────────────────────────────────────────────────────────
 
-    class RootLayout(BoxLayout):
-        pass
+    class CatToggle(Button):
+        active = BooleanProperty(False)
 
-    class HeaderBar(BoxLayout):
-        pass
+        def on_release(self):
+            self.active = not self.active
 
     class CatGrid(BoxLayout):
         def __init__(self, **kw):
@@ -1255,52 +1360,50 @@ if _KIVY:
             self.size_hint_y = None
             self.spacing = dp(4)
             self.bind(minimum_height=self.setter("height"))
-            self._toggles = {}
-            self._build()
+            self._toggles: dict[str, CatToggle] = {}
+            Clock.schedule_once(lambda dt: self._build(), 0)
 
         def _build(self):
-            cats = list(DORK_CATS.keys())
+            cats = ALL_CATS
             row = None
             for i, cat in enumerate(cats):
                 if i % 3 == 0:
-                    row = BoxLayout(size_hint_y=None, height=dp(34),
-                                    spacing=dp(4))
+                    row = BoxLayout(
+                        size_hint_y=None,
+                        height=dp(34),
+                        spacing=dp(4))
                     self.add_widget(row)
-                tb = ToggleButton(
-                    text=cat,
-                    font_size=dp(11),
-                    group="cats",
-                    allow_no_selection=False,
-                    background_normal="",
-                    background_down="",
-                )
-                tb.bind(state=lambda inst, val: None)
+                tb = CatToggle(text=cat, active=True)
                 self._toggles[cat] = tb
                 row.add_widget(tb)
-            # fill last row
-            if row and len(row.children) < 3:
-                for _ in range(3 - len(row.children)):
-                    row.add_widget(Widget())
+            if row:
+                remainder = len(cats) % 3
+                if remainder:
+                    for _ in range(3 - remainder):
+                        row.add_widget(Widget())
 
         def selected(self):
-            return [cat for cat, tb in self._toggles.items()
-                    if tb.state == "down"]
+            return [c for c, t in self._toggles.items() if t.active]
 
         def select_all(self):
-            for tb in self._toggles.values():
-                tb.state = "down"
+            for t in self._toggles.values():
+                t.active = True
+
+        def deselect_all(self):
+            for t in self._toggles.values():
+                t.active = False
 
     class FindingRow(RecycleDataViewBehavior, BoxLayout):
-        severity_text = StringProperty("")
-        title_text    = StringProperty("")
-        url_text      = StringProperty("")
-        sev_color     = ListProperty([0.9, 0.9, 0.9, 1])
+        sev_text   = StringProperty("")
+        title_text = StringProperty("")
+        url_text   = StringProperty("")
+        sev_color  = ListProperty([0.9, 0.9, 0.9, 1])
 
         def refresh_view_attrs(self, rv, index, data):
-            self.severity_text = data.get("severity_text", "")
-            self.title_text    = data.get("title_text", "")
-            self.url_text      = data.get("url_text", "")
-            self.sev_color     = data.get("sev_color", [0.9, 0.9, 0.9, 1])
+            self.sev_text   = data.get("sev_text", "")
+            self.title_text = data.get("title_text", "")
+            self.url_text   = data.get("url_text", "")
+            self.sev_color  = data.get("sev_color", [0.9, 0.9, 0.9, 1])
             return super().refresh_view_attrs(rv, index, data)
 
     class ScanScreen(Screen):
@@ -1312,170 +1415,217 @@ if _KIVY:
     class LogScreen(Screen):
         pass
 
-    # ── app ────────────────────────────────────────────────────────────────
+    # ── app ───────────────────────────────────────────────────────────────
 
     class DorkMasterApp(App):
-        BG     = ListProperty(list(BG))
-        PANEL  = ListProperty(list(PANEL))
-        ACCENT = ListProperty(list(ACCENT))
-        ACCENT2= ListProperty(list(ACCENT2))
-        DANGER = ListProperty(list(DANGER))
-        WARN   = ListProperty(list(WARN))
-        TEXT   = ListProperty(list(TEXT))
-        DIM    = ListProperty(list(DIM))
+        BG      = ListProperty(list(BG))
+        PANEL   = ListProperty(list(PANEL))
+        ACCENT  = ListProperty(list(ACCENT))
+        ACCENT2 = ListProperty(list(ACCENT2))
+        DANGER  = ListProperty(list(DANGER))
+        WARN    = ListProperty(list(WARN))
+        TEXT    = ListProperty(list(TEXT))
+        DIM     = ListProperty(list(DIM))
 
         def build(self):
             Builder.load_string(KV)
             Window.clearcolor = BG
 
             self.sm = ScreenManager(transition=SlideTransition())
-            self.scan_screen    = ScanScreen(name="scan")
-            self.results_screen = ResultsScreen(name="results")
-            self.log_screen     = LogScreen(name="log")
+            self.sm.add_widget(ScanScreen(name="scan"))
+            self.sm.add_widget(ResultsScreen(name="results"))
+            self.sm.add_widget(LogScreen(name="log"))
 
-            self.sm.add_widget(self.scan_screen)
-            self.sm.add_widget(self.results_screen)
-            self.sm.add_widget(self.log_screen)
-
-            root = RootLayout()
-            self._header = HeaderBar()
-            root.add_widget(self._header)
+            root = BoxLayout(orientation="vertical")
+            root.canvas.before.add(Color(*BG))
 
             # tab bar
-            tabs = BoxLayout(size_hint_y=None, height=dp(38), spacing=dp(4),
-                             padding=dp(8), 0)
-            for label, screen in [("Scan","scan"),("Results","results"),("Log","log")]:
-                btn = Button(text=label, font_size=dp(13),
-                             background_normal="", background_color=PANEL)
-                btn.bind(on_release=lambda inst, s=screen: self._goto(s))
+            tabs = BoxLayout(
+                size_hint_y=None,
+                height=dp(40),
+                spacing=dp(4),
+                padding=[dp(8), dp(4)])
+            for label, screen in [
+                    ("Scan", "scan"),
+                    ("Results", "results"),
+                    ("Log", "log")]:
+                btn = Button(
+                    text=label,
+                    font_size=dp(13),
+                    background_normal="",
+                    background_color=PANEL,
+                    color=list(ACCENT))
+                btn.bind(on_release=lambda inst, s=screen:
+                         setattr(self.sm, "current", s))
                 tabs.add_widget(btn)
+
             root.add_widget(tabs)
             root.add_widget(self.sm)
 
             self._log_lines: list[str] = []
             self._findings_data: list[dict] = []
             self._engine: Optional[ScanEngine] = None
-            self._loop: Optional[asyncio.AbstractEventLoop] = None
             self._thread: Optional[threading.Thread] = None
-
-            # select all cats by default
-            Clock.schedule_once(lambda dt: self.scan_screen.ids.cat_grid.select_all(), 0.1)
+            self._current_target: Optional[Target] = None
 
             return root
 
-        def _goto(self, name):
-            self.sm.current = name
+        # ── log ───────────────────────────────────────────────────────────
 
-        def goto_scan(self):    self.sm.current = "scan"
-        def goto_results(self): self.sm.current = "results"
+        def _append_log(self, msg: str, level: str = "info"):
+            col_map = {
+                "ok":   "33cc77",
+                "warn": "ffcc00",
+                "err":  "ff4444",
+                "info": "aabbff",
+            }
+            col = col_map.get(level, "eeeeee")
+            ts  = datetime.now().strftime("%H:%M:%S")
+            self._log_lines.append(f"[color={col}][{ts}] {msg}[/color]")
+            if len(self._log_lines) > 600:
+                self._log_lines = self._log_lines[-500:]
 
-        def _set_status(self, msg):
-            try:
-                self._header.ids.status_lbl.text = msg
-            except Exception:
-                pass
-
-        def _append_log(self, msg, level="info"):
-            col = {"ok":"[color=33cc77]","warn":"[color=ffcc00]",
-                   "err":"[color=ff4444]","info":"[color=aaaaff]"}.get(level,"[color=eeeeee]")
-            line = f"{col}{msg}[/color]"
-            self._log_lines.append(line)
-            if len(self._log_lines) > 500:
-                self._log_lines = self._log_lines[-400:]
-
-            def _update(dt):
+            def _upd(dt):
                 try:
-                    lbl = self.log_screen.ids.log_label
-                    lbl.markup = True
-                    lbl.text = "\n".join(self._log_lines[-200:])
-                    sv = self.log_screen.ids.log_scroll
+                    lbl = self.sm.get_screen("log").ids.log_label
+                    lbl.text = "\n".join(self._log_lines[-250:])
+                    sv = self.sm.get_screen("log").ids.log_scroll
                     sv.scroll_y = 0
                 except Exception:
                     pass
-            Clock.schedule_once(_update, 0)
+            Clock.schedule_once(_upd, 0)
 
-        def _add_url(self, url):
-            self._append_log(f"  {url[:80]}", "info")
+        # ── url callback ──────────────────────────────────────────────────
 
-        def _add_finding(self, finding):
+        def _add_url(self, url: str):
+            self._append_log(f"  {url[:90]}", "info")
+
+        # ── finding callback ──────────────────────────────────────────────
+
+        def _add_finding(self, finding: Finding):
             self._findings_data.append({
-                "severity_text": finding.severity.upper() + " | " + finding.category,
-                "title_text":    finding.title[:60],
-                "url_text":      finding.url[:70],
-                "sev_color":     list(SEV_COL.get(finding.severity, TEXT)),
+                "sev_text":   finding.severity.upper() + "  •  " + finding.category,
+                "title_text": finding.title[:65],
+                "url_text":   finding.url[:80],
+                "sev_color":  SEV_COL.get(finding.severity, [0.9, 0.9, 0.9, 1]),
             })
-            def _update(dt):
+
+            def _upd(dt):
                 try:
-                    rv = self.results_screen.ids.findings_rv
-                    rv.data = list(self._findings_data)
-                    rv.refresh_from_data()
+                    rs = self.sm.get_screen("results")
+                    rs.ids.findings_rv.data = list(self._findings_data)
+                    rs.ids.findings_rv.refresh_from_data()
+                    rs.ids.results_stats.text = (
+                        f"{len(self._findings_data)} finding(s)")
+                    rs.ids.no_findings_lbl.text = ""
                 except Exception:
                     pass
-            Clock.schedule_once(_update, 0)
+            Clock.schedule_once(_upd, 0)
+
+        # ── scan control ──────────────────────────────────────────────────
 
         def _set_scan_active(self, active: bool):
-            def _update(dt):
+            def _upd(dt):
                 try:
-                    self.scan_screen.ids.scan_btn.disabled = active
-                    self.scan_screen.ids.stop_btn.disabled = not active
+                    ss = self.sm.get_screen("scan")
+                    ss.ids.scan_btn.disabled = active
+                    ss.ids.stop_btn.disabled = not active
                 except Exception:
                     pass
-            Clock.schedule_once(_update, 0)
+            Clock.schedule_once(_upd, 0)
+
+        def _set_status(self, msg: str):
+            def _upd(dt):
+                try:
+                    self.sm.get_screen("scan").ids.status_lbl.text = msg
+                except Exception:
+                    pass
+            Clock.schedule_once(_upd, 0)
 
         def start_scan(self):
             try:
-                domain = self.scan_screen.ids.domain_input.text.strip()
+                ss = self.sm.get_screen("scan")
+                domain = ss.ids.domain_input.text.strip()
             except Exception:
                 return
+
             if not domain:
                 self._append_log("enter a domain first", "warn")
                 return
 
-            for pref in ("https://","http://"):
+            for pref in ("https://", "http://"):
                 if domain.startswith(pref):
                     domain = domain[len(pref):]
             domain = domain.rstrip("/")
 
+            # engines
             engines = []
             try:
-                if self.scan_screen.ids.tb_google.state == "down":
+                if ss.ids.tb_google.active:
                     engines.append("google")
-                if self.scan_screen.ids.tb_bing.state == "down":
+                if ss.ids.tb_bing.active:
                     engines.append("bing")
-                if self.scan_screen.ids.tb_ddg.state == "down":
+                if ss.ids.tb_ddg.active:
                     engines.append("ddg")
             except Exception:
-                engines = ["google"]
+                pass
             if not engines:
                 engines = ["google"]
 
-            cats = self.scan_screen.ids.cat_grid.selected()
+            # categories
+            try:
+                cats = ss.ids.cat_grid.selected()
+            except Exception:
+                cats = []
             if not cats:
                 cats = ["all"]
 
+            # proxy
             try:
-                proxy = self.scan_screen.ids.proxy_input.text.strip() or None
+                proxy = ss.ids.proxy_input.text.strip() or None
             except Exception:
                 proxy = None
+
+            # delay
+            try:
+                delay = float(ss.ids.delay_input.text.strip() or "3.0")
+            except Exception:
+                delay = 3.0
+
+            # pages
+            try:
+                pages = int(ss.ids.pages_input.text.strip() or "2")
+            except Exception:
+                pages = 2
 
             cfg = ScanConfig(
                 domain=domain,
                 engines=engines,
                 categories=cats,
                 proxy=proxy,
-                delay=3.0,
-                pages=2,
+                delay=delay,
+                pages=pages,
                 threads=6,
             )
 
+            # reset state
             self._findings_data = []
-            try:
-                self.results_screen.ids.findings_rv.data = []
-                self.results_screen.ids.results_title.text = f"Results — {domain}"
-            except Exception:
-                pass
 
-            self._append_log(f"Starting scan: {domain}", "ok")
+            def _reset(dt):
+                try:
+                    rs = self.sm.get_screen("results")
+                    rs.ids.findings_rv.data = []
+                    rs.ids.findings_rv.refresh_from_data()
+                    rs.ids.results_title.text = f"Results — {domain}"
+                    rs.ids.results_stats.text = ""
+                    rs.ids.no_findings_lbl.text = "scanning…"
+                except Exception:
+                    pass
+            Clock.schedule_once(_reset, 0)
+
+            self._append_log(
+                f"Starting: {domain}  engines={engines}  cats={len(cats)}",
+                "ok")
             self._set_status("scanning…")
             self._set_scan_active(True)
 
@@ -1488,37 +1638,52 @@ if _KIVY:
                 on_finding=lambda f: self._add_finding(f),
             )
 
-            def _run_loop():
+            def _thread_fn():
                 loop = asyncio.new_event_loop()
-                self._loop = loop
                 asyncio.set_event_loop(loop)
                 try:
                     target = loop.run_until_complete(self._engine.run())
-                    Clock.schedule_once(lambda dt: self._scan_done(target), 0)
+                    self._current_target = target
+                    Clock.schedule_once(
+                        lambda dt: self._scan_done(target), 0)
                 except Exception as exc:
                     Clock.schedule_once(
-                        lambda dt: self._append_log(f"FATAL: {exc!r}", "err"), 0)
+                        lambda dt: self._append_log(
+                            f"FATAL: {exc!r}", "err"), 0)
+                    Clock.schedule_once(
+                        lambda dt: self._set_scan_active(False), 0)
                 finally:
                     loop.close()
-                    self._loop = None
 
-            self._thread = threading.Thread(target=_run_loop, daemon=True)
+            self._thread = threading.Thread(
+                target=_thread_fn, daemon=True)
             self._thread.start()
 
         def stop_scan(self):
             if self._engine:
                 self._engine.stop()
-                self._append_log("stop requested", "warn")
+                self._append_log("stop requested — finishing current batch",
+                                 "warn")
             self._set_status("stopping…")
 
-        def _scan_done(self, target):
+        def _scan_done(self, target: Target):
             self._set_scan_active(False)
             n = len(target.findings)
-            self._set_status(f"done — {n} finding(s)")
+            u = len(target.urls)
+            self._set_status(f"done — {u} URLs  {n} finding(s)")
             self._append_log(
-                f"Scan complete: {len(target.urls)} URLs, {n} findings", "ok")
-            if not self._findings_data:
-                self._append_log("no findings — results still in report.txt", "info")
+                f"Scan complete: {u} URLs, {n} findings", "ok")
+
+            def _upd(dt):
+                try:
+                    rs = self.sm.get_screen("results")
+                    rs.ids.results_stats.text = (
+                        f"{u} URLs  •  {n} findings")
+                    rs.ids.no_findings_lbl.text = (
+                        "" if n else "No findings — check Log tab for URLs")
+                except Exception:
+                    pass
+            Clock.schedule_once(_upd, 0)
             self.sm.current = "results"
 
 
@@ -1534,26 +1699,30 @@ if __name__ == "__main__":
     if _KIVY:
         run_app()
     else:
-        # headless engine mode — useful for testing on CI without a display
         import argparse
-        ap = argparse.ArgumentParser(description="DorkMaster engine-only mode")
+        ap = argparse.ArgumentParser(description="DorkMaster engine-only")
         ap.add_argument("domain")
         ap.add_argument("--engines", default="google")
-        ap.add_argument("--proxy", default=None)
+        ap.add_argument("--proxy",   default=None)
         ap.add_argument("--no-probe", action="store_true")
+        ap.add_argument("--cats",    default="all")
         args = ap.parse_args()
 
         cfg = ScanConfig(
             domain=args.domain,
             engines=[e.strip() for e in args.engines.split(",")],
+            categories=[c.strip() for c in args.cats.split(",")],
             proxy=args.proxy,
             no_probe=args.no_probe,
         )
 
-        def log(m, lv="info"):
+        def _log(m, lv="info"):
             print(f"[{lv.upper()}] {m}")
 
-        engine = ScanEngine(cfg, on_log=log,
-                            on_url=lambda u: print(f"  URL: {u}"),
-                            on_finding=lambda f: print(f"  FINDING [{f.severity}] {f.title}"))
+        engine = ScanEngine(
+            cfg,
+            on_log=_log,
+            on_url=lambda u: print(f"  URL  {u}"),
+            on_finding=lambda f: print(
+                f"  [{f.severity.upper()}] {f.category} — {f.title}"))
         asyncio.run(engine.run())
