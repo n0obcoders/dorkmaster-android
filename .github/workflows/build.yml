@@ -7,6 +7,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +28,20 @@ jobs:
             libtinfo5 cmake libffi-dev libssl-dev \
             python3-pip build-essential ccache
 
+      - name: Accept Android SDK licenses
+        run: |
+          SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
+          yes | $SDKMANAGER --licenses 2>/dev/null || true
+          $SDKMANAGER "build-tools;34.0.0" "platforms;android-33" "platform-tools" 2>/dev/null || true
+
+      - name: Patch buildozer SDK path
+        run: |
+          mkdir -p ~/.buildozer/android/platform/
+          ln -sfn $ANDROID_HOME ~/.buildozer/android/platform/android-sdk
+          mkdir -p $ANDROID_HOME/tools/bin
+          ln -sfn $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+                  $ANDROID_HOME/tools/bin/sdkmanager
+
       - name: Cache Buildozer
         uses: actions/cache@v4
         with:
@@ -32,17 +50,6 @@ jobs:
 
       - name: Install Buildozer
         run: pip install buildozer cython==0.29.36
-
-      - name: Accept Android SDK licenses
-        run: |
-          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
-          echo -e "\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" >> ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo -e "\nd975f751698a77b662f1254ddbeed3901e976f5a" >> ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo -e "\n33b6a2b64607f11b759f320ef9dff4ae5c47d97a" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
-          echo -e "\n601085b94cd77f0b54ff86406957099ebe79c4d6" > ~/.buildozer/android/platform/android-sdk/licenses/android-googletv-license
-          echo -e "\n859f317696f67ef3d7f30a50a5560e7834b43903" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-arm-dbt-license
-          yes | sdkmanager --licenses 2>/dev/null || true
 
       - name: Build APK
         run: |
