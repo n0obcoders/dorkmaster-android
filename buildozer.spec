@@ -5,8 +5,7 @@ package.domain = org.dorkmaster
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,txt
 version = 4.0.0
-requirements = python3,kivy==2.3.0,aiohttp,aiohttp-socks,certifi,charset-normalizer,multidict,yarl,frozenlist,aiosignal,attrs
-orientation = portrait
+requirements = python3==3.11.6,kivy==2.3.0,pyjnius,requests,urllib3,certifi,charset-normalizer,idna,attrsorientation = portrait
 fullscreen = 0
 android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 android.api = 33
