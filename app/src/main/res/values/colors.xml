@@ -1,15 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="bg">#0F0F14</color>
     <color name="panel">#1A1A21</color>
     <color name="accent">#338FFF</color>
-    <color name="danger">#FF3333</color>
-    <color name="text">#EAEAEA</color>
     <color name="dim">#808088</color>
-    <color name="critical">#FF4040</color>
-    <color name="high">#FF8C1A</color>
-    <color name="medium">#FFCC1A</color>
-    <color name="low">#33CC77</color>
-    <color name="colorPrimary">#338FFF</color>
-    <color name="colorPrimaryDark">#0F0F14</color>
-    <color name="colorAccent">#338FFF</color>
+    <color name="white">#EAEAEA</color>
 </resources>
