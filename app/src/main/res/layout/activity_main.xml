@@ -12,7 +12,8 @@
         android:background="@color/panel"
         app:tabTextColor="@color/dim"
         app:tabSelectedTextColor="@color/accent"
-        app:tabIndicatorColor="@color/accent"/>
+        app:tabIndicatorColor="@color/accent"
+        app:tabMode="scrollable"/>
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
         android:layout_width="match_parent"
