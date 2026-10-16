@@ -1,3 +1,4 @@
+cat > app/src/main/java/org/dorkmaster/MainActivity.kt << 'EOF'
 package org.dorkmaster
 
 import android.content.ClipData
@@ -21,30 +22,21 @@ import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 
-// ── Dork library ─────────────────────────────────────────────────────────────
+// ── Dork library ──────────────────────────────────────────────────────────────
 
 data class DorkItem(val category: String, val query: String, val domain: String)
 
 object Dorks {
     val categoryColors = mapOf(
-        "credentials" to "#FF4040",
-        "logs"        to "#FF8C1A",
-        "databases"   to "#FFCC1A",
-        "git"         to "#33CC77",
-        "env"         to "#FF4040",
-        "backups"     to "#FF8C1A",
-        "admin"       to "#338FFF",
-        "cloud"       to "#33CC77",
-        "s3"          to "#FFCC1A",
-        "apikeys"     to "#FF4040",
-        "pastebin"    to "#FF8C1A",
-        "github"      to "#808088",
-        "jira"        to "#338FFF",
-        "cms"         to "#FFCC1A",
-        "network"     to "#FF8C1A",
-        "stealer"     to "#FF4040",
-        "emails"      to "#33CC77",
-        "errors"      to "#FF8C1A",
+        "credentials" to "#FF4040", "logs"      to "#FF8C1A",
+        "databases"   to "#FFCC1A", "git"       to "#33CC77",
+        "env"         to "#FF4040", "backups"   to "#FF8C1A",
+        "admin"       to "#338FFF", "cloud"     to "#33CC77",
+        "s3"          to "#FFCC1A", "apikeys"   to "#FF4040",
+        "pastebin"    to "#FF8C1A", "github"    to "#808088",
+        "jira"        to "#338FFF", "cms"       to "#FFCC1A",
+        "network"     to "#FF8C1A", "stealer"   to "#FF4040",
+        "emails"      to "#33CC77", "errors"    to "#FF8C1A",
         "xmlrpc"      to "#338FFF"
     )
 
@@ -250,21 +242,14 @@ object Dorks {
     fun generate(domain: String, cats: Set<String>): List<DorkItem> {
         val result = mutableListOf<DorkItem>()
         for ((cat, fn) in categories) {
-            if (cats.isEmpty() || cat in cats) {
-                fn(domain).forEach { result.add(DorkItem(cat, it, domain)) }
-            }
+            if (cats.isEmpty() || cat in cats) fn(domain).forEach { result.add(DorkItem(cat, it, domain)) }
         }
         return result
     }
 
-    fun googleUrl(query: String): String =
-        "https://www.google.com/search?q=${Uri.encode(query)}&num=10&safe=off"
-
-    fun bingUrl(query: String): String =
-        "https://www.bing.com/search?q=${Uri.encode(query)}&count=10"
-
-    fun ddgUrl(query: String): String =
-        "https://duckduckgo.com/?q=${Uri.encode(query)}&ia=web"
+    fun googleUrl(query: String) = "https://www.google.com/search?q=${Uri.encode(query)}&num=10&safe=off"
+    fun bingUrl  (query: String) = "https://www.bing.com/search?q=${Uri.encode(query)}&count=10"
+    fun ddgUrl   (query: String) = "https://duckduckgo.com/?q=${Uri.encode(query)}&ia=web"
 }
 
 // ── Main activity ─────────────────────────────────────────────────────────────
@@ -275,17 +260,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         val pager  = findViewById<ViewPager2>(R.id.viewPager)
         val tabs   = findViewById<TabLayout>(R.id.tabLayout)
-        val titles = listOf("Dork", "Browse")
-        pager.offscreenPageLimit = 2
+        pager.offscreenPageLimit = 1
         pager.adapter = object : FragmentStateAdapter(this) {
-            override fun getItemCount() = 2
-            override fun createFragment(pos: Int): Fragment = when (pos) {
-                0    -> DorkFragment()
-                else -> BrowserTabFragment()
-            }
+            override fun getItemCount() = 1
+            override fun createFragment(pos: Int) = DorkFragment()
         }
-        pager.isUserInputEnabled = true
-        TabLayoutMediator(tabs, pager) { tab, pos -> tab.text = titles[pos] }.attach()
+        pager.isUserInputEnabled = false
+        TabLayoutMediator(tabs, pager) { tab, _ -> tab.text = "Dork" }.attach()
     }
 }
 
@@ -307,7 +288,7 @@ class DorkFragment : Fragment() {
             setBackgroundColor(Color.parseColor("#0F0F14"))
         }
 
-        // ── header
+        // header
         root.addView(LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(12), dp(10), dp(12), dp(6))
@@ -321,7 +302,7 @@ class DorkFragment : Fragment() {
             })
         })
 
-        // ── domain input row
+        // domain input
         val domainEt = EditText(ctx).apply {
             hint = "target domain — example.com"
             setTextColor(Color.parseColor("#EAEAEA"))
@@ -335,7 +316,7 @@ class DorkFragment : Fragment() {
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { setMargins(dp(10), dp(6), dp(10), 0) })
 
-        // ── engine selector
+        // engine selector
         root.addView(TextView(ctx).apply {
             text = "Search engine"
             setTextColor(Color.parseColor("#606068"))
@@ -357,26 +338,23 @@ class DorkFragment : Fragment() {
         }
         root.addView(engGroup)
 
-        // ── category chips scroll
+        // category chips
         root.addView(TextView(ctx).apply {
             text = "Category"
             setTextColor(Color.parseColor("#606068"))
             textSize = 11f
             setPadding(dp(12), dp(8), dp(12), dp(2))
         })
-        val chipScroll = HorizontalScrollView(ctx).apply {
-            isHorizontalScrollBarEnabled = false
-        }
-        val chipRow = LinearLayout(ctx).apply {
+        val chipScroll = HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false }
+        val chipRow    = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(8), dp(2), dp(8), dp(6))
         }
-        val catList  = listOf("all") + Dorks.categories.keys.toList()
+        val catList   = listOf("all") + Dorks.categories.keys.toList()
         val chipViews = mutableListOf<TextView>()
         catList.forEach { cat ->
             val chip = TextView(ctx).apply {
-                text = cat
-                textSize = 11f
+                text = cat; textSize = 11f
                 setPadding(dp(10), dp(5), dp(10), dp(5))
                 setTypeface(null, Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(
@@ -384,14 +362,12 @@ class DorkFragment : Fragment() {
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { rightMargin = dp(6) }
             }
-            chipViews.add(chip)
-            chipRow.addView(chip)
+            chipViews.add(chip); chipRow.addView(chip)
         }
 
         fun updateChips(selected: String) {
             chipViews.forEachIndexed { idx, chip ->
-                val cat = catList[idx]
-                if (cat == selected) {
+                if (catList[idx] == selected) {
                     chip.setBackgroundColor(Color.parseColor("#338FFF"))
                     chip.setTextColor(Color.WHITE)
                 } else {
@@ -401,19 +377,12 @@ class DorkFragment : Fragment() {
             }
         }
         updateChips("all")
-
         chipViews.forEachIndexed { idx, chip ->
-            chip.setOnClickListener {
-                filterCat = catList[idx]
-                updateChips(filterCat)
-                applyFilter()
-            }
+            chip.setOnClickListener { filterCat = catList[idx]; updateChips(filterCat); applyFilter() }
         }
+        chipScroll.addView(chipRow); root.addView(chipScroll)
 
-        chipScroll.addView(chipRow)
-        root.addView(chipScroll)
-
-        // ── search bar + generate button
+        // search + generate row
         val searchRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(10), dp(4), dp(10), dp(4))
@@ -424,85 +393,64 @@ class DorkFragment : Fragment() {
             setHintTextColor(Color.parseColor("#606068"))
             setBackgroundColor(Color.parseColor("#1A1A21"))
             setPadding(dp(10), dp(8), dp(10), dp(8))
-            textSize = 12f
-            setSingleLine()
+            textSize = 12f; setSingleLine()
             layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f).apply { rightMargin = dp(6) }
         }
         val genBtn = Button(ctx).apply {
             text = "GENERATE"
             setBackgroundColor(Color.parseColor("#338FFF"))
-            setTextColor(Color.WHITE)
-            textSize = 12f
+            setTextColor(Color.WHITE); textSize = 12f
             setTypeface(null, Typeface.BOLD)
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(40))
         }
-        searchRow.addView(searchEt); searchRow.addView(genBtn)
-        root.addView(searchRow)
+        searchRow.addView(searchEt); searchRow.addView(genBtn); root.addView(searchRow)
 
-        // ── count bar
+        // count
         countTv = TextView(ctx).apply {
             text = "enter domain and tap GENERATE"
             setTextColor(Color.parseColor("#606068"))
-            textSize = 11f
-            setPadding(dp(12), dp(2), dp(12), dp(4))
+            textSize = 11f; setPadding(dp(12), dp(2), dp(12), dp(4))
         }
         root.addView(countTv)
 
-        // ── recycler
+        // recycler
         rv = RecyclerView(ctx).apply {
             layoutManager = LinearLayoutManager(ctx)
             setHasFixedSize(false)
-            setItemViewCacheSize(30)
+            setItemViewCacheSize(40)
+            recycledViewPool.setMaxRecycledViews(0, 80)
         }
         adapter = DorkAdapter(
-            onOpen = { item ->
-                val eng = engines[engGroup.checkedRadioButtonId].second
+            onOpenEngine = { item, eng ->
                 val url = when (eng) {
                     "bing" -> Dorks.bingUrl(item.query)
-                    "ddg"  -> Dorks.ddgUrl(item.query)
+                    "ddg"  -> Dorks.ddgUrl (item.query)
                     else   -> Dorks.googleUrl(item.query)
                 }
-                openInBrowser(url)
+                openUrl(url)
             },
             onCopy = { item ->
                 val cm = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 cm.setPrimaryClip(ClipData.newPlainText("dork", item.query))
                 Toast.makeText(requireContext(), "Copied", Toast.LENGTH_SHORT).show()
-            },
-            onOpenAllEngine = { item, eng ->
-                val url = when (eng) {
-                    "bing" -> Dorks.bingUrl(item.query)
-                    "ddg"  -> Dorks.ddgUrl(item.query)
-                    else   -> Dorks.googleUrl(item.query)
-                }
-                openInBrowser(url)
             }
         )
         rv.adapter = adapter
-        rv.recycledViewPool.setMaxRecycledViews(0, 60)
-        root.addView(rv, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
-        ))
+        root.addView(rv, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        // ── generate action
+        // generate
         genBtn.setOnClickListener {
-            val raw    = domainEt.text.toString().trim()
-            val domain = raw.removePrefix("https://").removePrefix("http://").trimEnd('/')
-            if (domain.isEmpty()) {
-                Toast.makeText(ctx, "Enter a domain first", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
+            val domain = domainEt.text.toString().trim()
+                .removePrefix("https://").removePrefix("http://").trimEnd('/')
+            if (domain.isEmpty()) { Toast.makeText(ctx, "Enter a domain first", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
             val cats = if (filterCat == "all") emptySet() else setOf(filterCat)
             allItems = Dorks.generate(domain, cats)
             applyFilter()
         }
 
-        // ── filter watcher
+        // filter watcher
         searchEt.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) {
-                filterText = s.toString().lowercase().trim()
-                applyFilter()
-            }
+            override fun afterTextChanged(s: Editable?) { filterText = s.toString().lowercase().trim(); applyFilter() }
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
@@ -519,12 +467,14 @@ class DorkFragment : Fragment() {
         countTv.text = "${filtered.size} dorks" + if (allItems.size != filtered.size) " (${allItems.size} total)" else ""
     }
 
-    private fun openInBrowser(url: String) {
-        // switch to browser tab and load
-        val act = requireActivity() as? MainActivity
-        act?.findViewById<ViewPager2>(R.id.viewPager)?.let { pager ->
-            BrowserTabFragment.pendingUrl = url
-            pager.currentItem = 1
+    // opens in whatever browser the user has set as default (Brave / Firefox / Tor / Chrome)
+    private fun openUrl(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "No browser found — install Brave or Firefox", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -534,235 +484,116 @@ class DorkFragment : Fragment() {
 // ── Dork adapter ──────────────────────────────────────────────────────────────
 
 class DorkAdapter(
-    private val onOpen: (DorkItem) -> Unit,
-    private val onCopy: (DorkItem) -> Unit,
-    private val onOpenAllEngine: (DorkItem, String) -> Unit
+    private val onOpenEngine: (DorkItem, String) -> Unit,
+    private val onCopy      : (DorkItem)         -> Unit
 ) : RecyclerView.Adapter<DorkAdapter.VH>() {
 
     private var data = listOf<DorkItem>()
-
-    fun setData(d: List<DorkItem>) {
-        data = d
-        notifyDataSetChanged()
-    }
+    fun setData(d: List<DorkItem>) { data = d; notifyDataSetChanged() }
 
     inner class VH(val root: LinearLayout) : RecyclerView.ViewHolder(root) {
-        val catTv    = TextView(root.context)
-        val queryTv  = TextView(root.context)
-        val btnRow   = LinearLayout(root.context)
-        val openBtn  = Button(root.context)
-        val bingBtn  = Button(root.context)
-        val ddgBtn   = Button(root.context)
-        val copyBtn  = Button(root.context)
+        val catTv   = TextView(root.context)
+        val queryTv = TextView(root.context)
+        val btnRow  = LinearLayout(root.context)
+        val gBtn    = Button(root.context)
+        val bBtn    = Button(root.context)
+        val dBtn    = Button(root.context)
+        val cBtn    = Button(root.context)
 
         init {
             root.orientation = LinearLayout.VERTICAL
             root.setPadding(dp(10), dp(8), dp(10), dp(8))
             root.setBackgroundColor(Color.parseColor("#1A1A21"))
             root.layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = dp(5); setMargins(dp(8), dp(3), dp(8), dp(3)) }
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(dp(8), dp(3), dp(8), dp(3)) }
 
-            catTv.textSize   = 10f
-            catTv.setTypeface(null, Typeface.BOLD)
+            catTv.textSize = 10f; catTv.setTypeface(null, Typeface.BOLD)
 
             queryTv.textSize = 12f
             queryTv.setTextColor(Color.parseColor("#EAEAEA"))
-            queryTv.setPadding(0, dp(3), 0, dp(4))
+            queryTv.setPadding(0, dp(3), 0, dp(5))
             queryTv.setLineSpacing(dp(2).toFloat(), 1f)
 
-            btnRow.orientation = LinearLayout.HORIZONTAL
-            btnRow.weightSum   = 4f
+            btnRow.orientation = LinearLayout.HORIZONTAL; btnRow.weightSum = 4f
 
-            fun mkBtn(label: String, bg: String, fg: String) = Button(root.context).apply {
+            fun btn(label: String, bg: String, fg: String = "#FFFFFF") = Button(root.context).apply {
                 text = label
                 setBackgroundColor(Color.parseColor(bg))
                 setTextColor(Color.parseColor(fg))
-                textSize = 10f
+                textSize = 10f; setTypeface(null, Typeface.BOLD)
                 setPadding(dp(2), 0, dp(2), 0)
-                setTypeface(null, Typeface.BOLD)
-                layoutParams = LinearLayout.LayoutParams(0, dp(30), 1f).apply { rightMargin = dp(3) }
+                layoutParams = LinearLayout.LayoutParams(0, dp(32), 1f).apply { rightMargin = dp(3) }
             }
 
-            openBtn.apply { text = "Google"; setBackgroundColor(Color.parseColor("#338FFF")); setTextColor(Color.WHITE); textSize = 10f; setTypeface(null, Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams = LinearLayout.LayoutParams(0, dp(30), 1f).apply { rightMargin = dp(3) } }
-            bingBtn.apply { text = "Bing";   setBackgroundColor(Color.parseColor("#008080")); setTextColor(Color.WHITE); textSize = 10f; setTypeface(null, Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams = LinearLayout.LayoutParams(0, dp(30), 1f).apply { rightMargin = dp(3) } }
-            ddgBtn.apply  { text = "DDG";    setBackgroundColor(Color.parseColor("#DE5833")); setTextColor(Color.WHITE); textSize = 10f; setTypeface(null, Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams = LinearLayout.LayoutParams(0, dp(30), 1f).apply { rightMargin = dp(3) } }
-            copyBtn.apply { text = "Copy";   setBackgroundColor(Color.parseColor("#2A2A33")); setTextColor(Color.parseColor("#338FFF")); textSize = 10f; setTypeface(null, Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams = LinearLayout.LayoutParams(0, dp(30), 1f) }
+            gBtn.apply { text="Google"; setBackgroundColor(Color.parseColor("#1A6FD4")); setTextColor(Color.WHITE); textSize=10f; setTypeface(null,Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f).apply{rightMargin=dp(3)} }
+            bBtn.apply { text="Bing";   setBackgroundColor(Color.parseColor("#008080")); setTextColor(Color.WHITE); textSize=10f; setTypeface(null,Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f).apply{rightMargin=dp(3)} }
+            dBtn.apply { text="DDG";    setBackgroundColor(Color.parseColor("#DE5833")); setTextColor(Color.WHITE); textSize=10f; setTypeface(null,Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f).apply{rightMargin=dp(3)} }
+            cBtn.apply { text="Copy";   setBackgroundColor(Color.parseColor("#2A2A33")); setTextColor(Color.parseColor("#338FFF")); textSize=10f; setTypeface(null,Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f) }
 
-            btnRow.addView(openBtn); btnRow.addView(bingBtn); btnRow.addView(ddgBtn); btnRow.addView(copyBtn)
+            btnRow.addView(gBtn); btnRow.addView(bBtn); btnRow.addView(dBtn); btnRow.addView(cBtn)
             root.addView(catTv); root.addView(queryTv); root.addView(btnRow)
         }
-
         fun dp(v: Int) = (v * root.context.resources.displayMetrics.density).toInt()
     }
 
     override fun onCreateViewHolder(p: ViewGroup, t: Int) = VH(LinearLayout(p.context))
     override fun getItemCount() = data.size
-
     override fun onBindViewHolder(h: VH, pos: Int) {
-        val item = data[pos]
+        val item  = data[pos]
         val color = Dorks.categoryColors[item.category] ?: "#808088"
         h.catTv.text = "▸ ${item.category.uppercase()}"
         h.catTv.setTextColor(Color.parseColor(color))
         h.queryTv.text = item.query
-        h.openBtn.setOnClickListener { onOpen(item) }
-        h.bingBtn.setOnClickListener { onOpenAllEngine(item, "bing") }
-        h.ddgBtn.setOnClickListener  { onOpenAllEngine(item, "ddg")  }
-        h.copyBtn.setOnClickListener { onCopy(item) }
+        h.gBtn.setOnClickListener { onOpenEngine(item, "google") }
+        h.bBtn.setOnClickListener { onOpenEngine(item, "bing")   }
+        h.dBtn.setOnClickListener { onOpenEngine(item, "ddg")    }
+        h.cBtn.setOnClickListener { onCopy(item) }
     }
 }
+EOF
 
-// ── Browser tab fragment (in-app) ─────────────────────────────────────────────
+# fix manifest — remove BrowserActivity, single activity only
+cat > app/src/main/AndroidManifest.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme"
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+EOF
 
-class BrowserTabFragment : Fragment() {
-
-    companion object {
-        var pendingUrl: String? = null
-    }
-
-    private var webView: WebView? = null
-
-    @android.annotation.SuppressLint("SetJavaScriptEnabled")
-    override fun onCreateView(inf: LayoutInflater, c: ViewGroup?, b: Bundle?): View {
-        val ctx  = requireContext()
-        val root = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#0F0F14"))
-        }
-
-        // url bar
-        val barRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(6), dp(6), dp(6), dp(6))
-            setBackgroundColor(Color.parseColor("#1A1A21"))
-        }
-        val urlBar = EditText(ctx).apply {
-            hint = "https://..."
-            textSize = 12f
-            setTextColor(Color.parseColor("#EAEAEA"))
-            setHintTextColor(Color.parseColor("#606068"))
-            setBackgroundColor(Color.TRANSPARENT)
-            setSingleLine()
-            layoutParams = LinearLayout.LayoutParams(0, dp(38), 1f)
-        }
-        val goBtn = Button(ctx).apply {
-            text = "Go"
-            setBackgroundColor(Color.parseColor("#338FFF"))
-            setTextColor(Color.WHITE)
-            textSize = 12f
-            layoutParams = LinearLayout.LayoutParams(dp(52), dp(38))
-        }
-        barRow.addView(urlBar); barRow.addView(goBtn)
-        root.addView(barRow)
-
-        // nav row
-        val navRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(4), dp(2), dp(4), dp(2))
-            setBackgroundColor(Color.parseColor("#1A1A21"))
-        }
-        fun navBtn(t: String) = Button(ctx).apply {
-            text = t; textSize = 11f
-            setBackgroundColor(Color.parseColor("#0F0F14"))
-            setTextColor(Color.parseColor("#338FFF"))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, dp(32)
-            ).apply { rightMargin = dp(4) }
-        }
-        val backBtn   = navBtn("◀")
-        val fwdBtn    = navBtn("▶")
-        val reloadBtn = navBtn("↻")
-        val extBtn    = navBtn("⬡ ext")
-        val titleTv   = TextView(ctx).apply {
-            text = "Browser"
-            setTextColor(Color.parseColor("#606068"))
-            textSize = 10f
-            maxLines = 1
-            ellipsize = android.text.TextUtils.TruncateAt.END
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        listOf(backBtn, fwdBtn, reloadBtn, titleTv, extBtn).forEach { navRow.addView(it) }
-        root.addView(navRow)
-
-        // progress
-        val progress = ProgressBar(ctx, null, android.R.attr.progressBarStyleHorizontal).apply {
-            max = 100; isIndeterminate = false
-        }
-        root.addView(progress, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(3)
-        ))
-
-        // webview
-        val wv = WebView(ctx)
-        wv.settings.apply {
-            javaScriptEnabled    = true
-            domStorageEnabled    = true
-            loadWithOverviewMode = true
-            useWideViewPort      = true
-            setSupportZoom(true)
-            builtInZoomControls  = true
-            displayZoomControls  = false
-            mixedContentMode     = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-            cacheMode            = android.webkit.WebSettings.LOAD_DEFAULT
-            userAgentString      = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36"
-        }
-        wv.webViewClient = object : android.webkit.WebViewClient() {
-            override fun onPageStarted(v: WebView?, u: String?, f: android.graphics.Bitmap?) {
-                urlBar.setText(u); titleTv.text = "Loading..."
-            }
-            override fun onPageFinished(v: WebView?, u: String?) {
-                titleTv.text = v?.title ?: u ?: ""
-                progress.progress = 0
-            }
-            override fun onReceivedError(v: WebView?, req: android.webkit.WebResourceRequest?, err: android.webkit.WebResourceError?) {
-                // swallow — page still loads partially, don't crash
-            }
-        }
-        wv.webChromeClient = object : android.webkit.WebChromeClient() {
-            override fun onProgressChanged(v: WebView?, p: Int) { progress.progress = p }
-        }
-        webView = wv
-        root.addView(wv, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
-        ))
-
-        // actions
-        goBtn.setOnClickListener {
-            var url = urlBar.text.toString().trim()
-            if (!url.startsWith("http")) url = "https://$url"
-            wv.loadUrl(url)
-        }
-        urlBar.setOnEditorActionListener { _, _, _ -> goBtn.performClick(); true }
-        backBtn.setOnClickListener   { if (wv.canGoBack())    wv.goBack()    }
-        fwdBtn.setOnClickListener    { if (wv.canGoForward()) wv.goForward() }
-        reloadBtn.setOnClickListener { wv.reload() }
-        extBtn.setOnClickListener {
-            val url = wv.url ?: urlBar.text.toString().trim()
-            if (url.isNotEmpty()) {
-                try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-                catch (_: Exception) { Toast.makeText(ctx, "No browser found", Toast.LENGTH_SHORT).show() }
-            }
-        }
-
-        // load pending url from dork tab
-        pendingUrl?.let { wv.loadUrl(it); pendingUrl = null }
-
-        return root
-    }
-
-    override fun onResume() {
-        super.onResume()
-        pendingUrl?.let { webView?.loadUrl(it); pendingUrl = null }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        webView?.stopLoading()
-        webView?.destroy()
-        webView = null
-    }
-
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-}
+# fix layout — single tab, no browser tab needed
+cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg">
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/bg"/>
+</LinearLayout>
+EOF
 
