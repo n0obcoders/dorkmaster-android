@@ -435,14 +435,32 @@ class DorkFragment : Fragment() {
     }
 
     private fun openUrl(url: String) {
+    val uri    = Uri.parse(url)
+    val base   = Intent(Intent.ACTION_VIEW, uri)
+    // try Brave, Firefox, Tor in order — fall back to system chooser
+    val targets = listOf(
+        "com.brave.browser",
+        "com.brave.browser_default",
+        "org.mozilla.firefox",
+        "org.mozilla.fenix",
+        "org.torproject.torbrowser",
+        "org.torproject.android"
+    )
+    val ctx = requireContext()
+    for (pkg in targets) {
+        val attempt = Intent(Intent.ACTION_VIEW, uri).apply { setPackage(pkg) }
         try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
-        } catch (e: Exception) {
-            Toast.makeText(requireContext(), "No browser found — install Brave or Firefox", Toast.LENGTH_LONG).show()
-        }
+            ctx.startActivity(attempt)
+            return
+        } catch (_: Exception) {}
     }
+    // none found — show chooser so user picks
+    try {
+        ctx.startActivity(Intent.createChooser(base, "Open dork in browser"))
+    } catch (e: Exception) {
+        Toast.makeText(ctx, "No browser found — install Brave or Firefox", Toast.LENGTH_LONG).show()
+    }
+}
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 }
