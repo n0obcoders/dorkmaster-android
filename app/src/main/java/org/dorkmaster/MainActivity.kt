@@ -1,4 +1,3 @@
-cat > app/src/main/java/org/dorkmaster/MainActivity.kt << 'EOF'
 package org.dorkmaster
 
 import android.content.ClipData
@@ -22,8 +21,6 @@ import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 
-// ── Dork library ──────────────────────────────────────────────────────────────
-
 data class DorkItem(val category: String, val query: String, val domain: String)
 
 object Dorks {
@@ -39,9 +36,7 @@ object Dorks {
         "emails"      to "#33CC77", "errors"    to "#FF8C1A",
         "xmlrpc"      to "#338FFF"
     )
-
     private fun s(d: String) = "site:$d"
-
     val categories: Map<String, (String) -> List<String>> = linkedMapOf(
         "credentials" to { d -> listOf(
             "${s(d)} filetype:txt intext:\"username\" intext:\"password\"",
@@ -238,7 +233,6 @@ object Dorks {
             "${s(d)} inurl:\"/wp-json/wp/v2/users\""
         )}
     )
-
     fun generate(domain: String, cats: Set<String>): List<DorkItem> {
         val result = mutableListOf<DorkItem>()
         for ((cat, fn) in categories) {
@@ -246,20 +240,17 @@ object Dorks {
         }
         return result
     }
-
     fun googleUrl(query: String) = "https://www.google.com/search?q=${Uri.encode(query)}&num=10&safe=off"
     fun bingUrl  (query: String) = "https://www.bing.com/search?q=${Uri.encode(query)}&count=10"
     fun ddgUrl   (query: String) = "https://duckduckgo.com/?q=${Uri.encode(query)}&ia=web"
 }
 
-// ── Main activity ─────────────────────────────────────────────────────────────
-
 class MainActivity : AppCompatActivity() {
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         setContentView(R.layout.activity_main)
-        val pager  = findViewById<ViewPager2>(R.id.viewPager)
-        val tabs   = findViewById<TabLayout>(R.id.tabLayout)
+        val pager = findViewById<ViewPager2>(R.id.viewPager)
+        val tabs  = findViewById<TabLayout>(R.id.tabLayout)
         pager.offscreenPageLimit = 1
         pager.adapter = object : FragmentStateAdapter(this) {
             override fun getItemCount() = 1
@@ -270,10 +261,7 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-// ── Dork fragment ─────────────────────────────────────────────────────────────
-
 class DorkFragment : Fragment() {
-
     private lateinit var rv: RecyclerView
     private lateinit var adapter: DorkAdapter
     private lateinit var countTv: TextView
@@ -287,8 +275,6 @@ class DorkFragment : Fragment() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#0F0F14"))
         }
-
-        // header
         root.addView(LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(12), dp(10), dp(12), dp(6))
@@ -301,8 +287,6 @@ class DorkFragment : Fragment() {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             })
         })
-
-        // domain input
         val domainEt = EditText(ctx).apply {
             hint = "target domain — example.com"
             setTextColor(Color.parseColor("#EAEAEA"))
@@ -315,8 +299,6 @@ class DorkFragment : Fragment() {
         root.addView(domainEt, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { setMargins(dp(10), dp(6), dp(10), 0) })
-
-        // engine selector
         root.addView(TextView(ctx).apply {
             text = "Search engine"
             setTextColor(Color.parseColor("#606068"))
@@ -337,8 +319,6 @@ class DorkFragment : Fragment() {
             })
         }
         root.addView(engGroup)
-
-        // category chips
         root.addView(TextView(ctx).apply {
             text = "Category"
             setTextColor(Color.parseColor("#606068"))
@@ -358,13 +338,11 @@ class DorkFragment : Fragment() {
                 setPadding(dp(10), dp(5), dp(10), dp(5))
                 setTypeface(null, Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { rightMargin = dp(6) }
             }
             chipViews.add(chip); chipRow.addView(chip)
         }
-
         fun updateChips(selected: String) {
             chipViews.forEachIndexed { idx, chip ->
                 if (catList[idx] == selected) {
@@ -381,8 +359,6 @@ class DorkFragment : Fragment() {
             chip.setOnClickListener { filterCat = catList[idx]; updateChips(filterCat); applyFilter() }
         }
         chipScroll.addView(chipRow); root.addView(chipScroll)
-
-        // search + generate row
         val searchRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(10), dp(4), dp(10), dp(4))
@@ -404,16 +380,12 @@ class DorkFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(40))
         }
         searchRow.addView(searchEt); searchRow.addView(genBtn); root.addView(searchRow)
-
-        // count
         countTv = TextView(ctx).apply {
             text = "enter domain and tap GENERATE"
             setTextColor(Color.parseColor("#606068"))
             textSize = 11f; setPadding(dp(12), dp(2), dp(12), dp(4))
         }
         root.addView(countTv)
-
-        // recycler
         rv = RecyclerView(ctx).apply {
             layoutManager = LinearLayoutManager(ctx)
             setHasFixedSize(false)
@@ -424,7 +396,7 @@ class DorkFragment : Fragment() {
             onOpenEngine = { item, eng ->
                 val url = when (eng) {
                     "bing" -> Dorks.bingUrl(item.query)
-                    "ddg"  -> Dorks.ddgUrl (item.query)
+                    "ddg"  -> Dorks.ddgUrl(item.query)
                     else   -> Dorks.googleUrl(item.query)
                 }
                 openUrl(url)
@@ -437,8 +409,6 @@ class DorkFragment : Fragment() {
         )
         rv.adapter = adapter
         root.addView(rv, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-
-        // generate
         genBtn.setOnClickListener {
             val domain = domainEt.text.toString().trim()
                 .removePrefix("https://").removePrefix("http://").trimEnd('/')
@@ -447,14 +417,11 @@ class DorkFragment : Fragment() {
             allItems = Dorks.generate(domain, cats)
             applyFilter()
         }
-
-        // filter watcher
         searchEt.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) { filterText = s.toString().lowercase().trim(); applyFilter() }
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
-
         return root
     }
 
@@ -467,7 +434,6 @@ class DorkFragment : Fragment() {
         countTv.text = "${filtered.size} dorks" + if (allItems.size != filtered.size) " (${allItems.size} total)" else ""
     }
 
-    // opens in whatever browser the user has set as default (Brave / Firefox / Tor / Chrome)
     private fun openUrl(url: String) {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
@@ -480,8 +446,6 @@ class DorkFragment : Fragment() {
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 }
-
-// ── Dork adapter ──────────────────────────────────────────────────────────────
 
 class DorkAdapter(
     private val onOpenEngine: (DorkItem, String) -> Unit,
@@ -499,7 +463,6 @@ class DorkAdapter(
         val bBtn    = Button(root.context)
         val dBtn    = Button(root.context)
         val cBtn    = Button(root.context)
-
         init {
             root.orientation = LinearLayout.VERTICAL
             root.setPadding(dp(10), dp(8), dp(10), dp(8))
@@ -507,30 +470,16 @@ class DorkAdapter(
             root.layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { setMargins(dp(8), dp(3), dp(8), dp(3)) }
-
             catTv.textSize = 10f; catTv.setTypeface(null, Typeface.BOLD)
-
             queryTv.textSize = 12f
             queryTv.setTextColor(Color.parseColor("#EAEAEA"))
             queryTv.setPadding(0, dp(3), 0, dp(5))
             queryTv.setLineSpacing(dp(2).toFloat(), 1f)
-
             btnRow.orientation = LinearLayout.HORIZONTAL; btnRow.weightSum = 4f
-
-            fun btn(label: String, bg: String, fg: String = "#FFFFFF") = Button(root.context).apply {
-                text = label
-                setBackgroundColor(Color.parseColor(bg))
-                setTextColor(Color.parseColor(fg))
-                textSize = 10f; setTypeface(null, Typeface.BOLD)
-                setPadding(dp(2), 0, dp(2), 0)
-                layoutParams = LinearLayout.LayoutParams(0, dp(32), 1f).apply { rightMargin = dp(3) }
-            }
-
-            gBtn.apply { text="Google"; setBackgroundColor(Color.parseColor("#1A6FD4")); setTextColor(Color.WHITE); textSize=10f; setTypeface(null,Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f).apply{rightMargin=dp(3)} }
-            bBtn.apply { text="Bing";   setBackgroundColor(Color.parseColor("#008080")); setTextColor(Color.WHITE); textSize=10f; setTypeface(null,Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f).apply{rightMargin=dp(3)} }
-            dBtn.apply { text="DDG";    setBackgroundColor(Color.parseColor("#DE5833")); setTextColor(Color.WHITE); textSize=10f; setTypeface(null,Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f).apply{rightMargin=dp(3)} }
-            cBtn.apply { text="Copy";   setBackgroundColor(Color.parseColor("#2A2A33")); setTextColor(Color.parseColor("#338FFF")); textSize=10f; setTypeface(null,Typeface.BOLD); setPadding(dp(2),0,dp(2),0); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f) }
-
+            gBtn.apply { text="Google"; setBackgroundColor(Color.parseColor("#1A6FD4")); setTextColor(Color.WHITE); textSize=10f; setTypeface(null,Typeface.BOLD); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f).apply{rightMargin=dp(3)} }
+            bBtn.apply { text="Bing";   setBackgroundColor(Color.parseColor("#008080")); setTextColor(Color.WHITE); textSize=10f; setTypeface(null,Typeface.BOLD); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f).apply{rightMargin=dp(3)} }
+            dBtn.apply { text="DDG";    setBackgroundColor(Color.parseColor("#DE5833")); setTextColor(Color.WHITE); textSize=10f; setTypeface(null,Typeface.BOLD); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f).apply{rightMargin=dp(3)} }
+            cBtn.apply { text="Copy";   setBackgroundColor(Color.parseColor("#2A2A33")); setTextColor(Color.parseColor("#338FFF")); textSize=10f; setTypeface(null,Typeface.BOLD); layoutParams=LinearLayout.LayoutParams(0,dp(32),1f) }
             btnRow.addView(gBtn); btnRow.addView(bBtn); btnRow.addView(dBtn); btnRow.addView(cBtn)
             root.addView(catTv); root.addView(queryTv); root.addView(btnRow)
         }
@@ -551,49 +500,3 @@ class DorkAdapter(
         h.cBtn.setOnClickListener { onCopy(item) }
     }
 }
-EOF
-
-# fix manifest — remove BrowserActivity, single activity only
-cat > app/src/main/AndroidManifest.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.INTERNET" />
-    <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:label="@string/app_name"
-        android:theme="@style/AppTheme"
-        android:hardwareAccelerated="true"
-        android:usesCleartextTraffic="true">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden"
-            android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
-EOF
-
-# fix layout — single tab, no browser tab needed
-cat > app/src/main/res/layout/activity_main.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/bg">
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/viewPager"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/bg"/>
-</LinearLayout>
-EOF
-
